@@ -1,0 +1,1973 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deeyu Food - Đặt cơm & nước</title>
+<style>
+  :root { --bg:#fff8f0; --card:#fff; --ink:#2b2118; --mute:#6f604f; --brand:#e8590c; --brand2:#fff0e5; --line:#f0e2d3; --ok:#2f9e44; --bad:#e03131; --head:52px; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; height:var(--head); padding:0 16px; display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:5; }
+  header h1 { font-size:18px; margin:0; flex:1; }
+  header button { background:rgba(255,255,255,.2); color:#fff; border:0; border-radius:8px; padding:6px 10px; font-size:14px; }
+  header button:disabled { opacity:.35; }
+  #navBtns { display:flex; align-items:center; gap:6px; }
+  #userBadge { max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; background:#fff; color:var(--brand); font-weight:700; font-size:13px; padding:6px 10px; border-radius:10px; }
+  main { max-width:640px; margin:0 auto; padding:16px 16px 140px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
+  h2 { font-size:17px; margin:0 0 8px; }
+  label { display:block; font-size:14px; color:var(--mute); margin:10px 0 4px; }
+  input, textarea, select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; background:#fff; color:var(--ink); }
+  textarea { min-height:110px; resize:vertical; }
+  button.primary { background:var(--brand); color:#fff; border:0; border-radius:10px; padding:11px 16px; font:inherit; font-weight:600; width:100%; margin-top:12px; }
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+  .tile { aspect-ratio:1; display:flex; flex-direction:column; justify-content:space-between; align-items:flex-start; gap:6px; padding:14px; text-align:left; font:inherit; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:16px; }
+  .tile .ti { font-size:42px; line-height:1; }
+  .tile b { font-size:17px; line-height:1.25; }
+  .tile .mute { font-size:13px; }
+  .tile.main { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .tile.main .mute { color:rgba(255,255,255,.85); }
+  .statrow { display:flex; justify-content:space-between; padding:3px 0; }
+  .statrow.big { font-size:22px; font-weight:700; }
+  button.ghost.paid { background:#d3f9d8; color:var(--ok); }
+  .chip.paid { background:var(--ok); color:#fff; border-color:var(--ok); }
+  button.ghost.danger { background:#ffe3e3; color:var(--bad); }
+  button.ghost {background:var(--brand2); color:var(--brand); border:0; border-radius:10px; padding:9px 14px; font:inherit; font-weight:600; }
+  button:disabled { opacity:.5; }
+  /* con trỏ bàn tay cho mọi thứ bấm được */
+  button, select, [data-id], input[type=file], input[type=file]::file-selector-button, label[for] { cursor:pointer; }
+  button:disabled { cursor:not-allowed; }
+  .row { display:flex; align-items:center; gap:10px; }
+  .row .grow { flex:1; min-width:0; }
+  .mute { color:var(--mute); font-size:14px; }
+  .tag { display:inline-block; font-size:12px; padding:2px 8px; border-radius:99px; background:var(--brand2); color:var(--brand); }
+  .tag.locked { background:#ffe3e3; color:var(--bad); }
+  .tag.ok { background:#d3f9d8; color:var(--ok); }
+  .tabs { display:flex; gap:6px; margin-bottom:10px; }
+  .tabs button { flex:1; padding:9px; border:1px solid var(--line); background:#fff; border-radius:10px; font:inherit; }
+  .tabs button.on { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .qty { display:flex; align-items:center; gap:8px; }
+  .qty button { width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:#fff; font-size:22px; line-height:1; color:var(--ink); }
+  .qty span { min-width:20px; text-align:center; font-weight:600; }
+  .item { padding:10px 0; border-bottom:1px solid var(--line); }
+  .item:last-child { border:0; }
+  /* 16px: nhỏ hơn thì iPhone tự phóng to khi bấm vào ô */
+  .item input.note { margin-top:6px; padding:8px 10px; }
+  .chips { display:flex; gap:6px; overflow-x:auto; padding:6px 0 2px; scrollbar-width:none; }
+  .chips::-webkit-scrollbar { display:none; }
+  .chip { flex:none; min-height:40px; padding:6px 12px; border:1px solid var(--line); border-radius:99px; background:#fff; color:var(--ink); font:inherit; font-size:15px; }
+  .chip.on { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .finder { position:sticky; top:var(--head); z-index:4; background:var(--bg); margin:0 -16px 8px; padding:8px 16px 4px; }
+  .cat { scroll-margin-top:calc(var(--head) + 120px); }
+  .cartbox { max-height:45vh; overflow:auto; border-bottom:1px solid var(--line); margin-bottom:8px; padding-bottom:6px; }
+  button.cartsum { background:none; border:0; padding:0; text-align:left; font:inherit; color:var(--ink); }
+  button.cartsum:disabled { opacity:1; cursor:default; }
+  a.btnlink { display:block; text-align:center; text-decoration:none; margin-top:10px; padding:11px 16px; border-radius:10px; background:var(--brand); color:#fff; font-weight:600; }
+  .step { font-weight:700; font-size:15px; margin:18px 0 8px; }
+  .tabs.sm button { font-size:14px; padding:9px 4px; }
+  .pagehead { font-size:19px; font-weight:700; margin:4px 2px 10px; }
+  .tabs.five { gap:4px; }
+  .tabs.five button { font-size:12px; line-height:1.25; padding:6px 2px; }
+  .tabs.five button span { font-size:18px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  .bar > div { max-width:640px; margin:0 auto; }
+  .bar button { margin-top:6px; }
+  pre.sum { background:#fffdf9; border:1px dashed var(--brand); border-radius:10px; padding:12px; white-space:pre-wrap; font:15px/1.5 ui-monospace,Consolas,monospace; margin:8px 0; }
+  .err { color:var(--bad); font-size:14px; margin-top:8px; min-height:1em; }
+  .toast { position:fixed; left:50%; bottom:90px; transform:translateX(-50%); background:#333; color:#fff; padding:8px 14px; border-radius:99px; font-size:14px; z-index:10; }
+  img.qr { width:220px; max-width:100%; display:block; margin:8px auto; border-radius:8px; }
+  .hidden { display:none !important; }
+  .line { margin:8px 0 0 10px; padding-left:10px; border-left:3px solid var(--brand2); }
+  details.dd { border:1px solid var(--line); border-radius:8px; background:#fff; padding:0 12px; }
+  details.dd summary { padding:10px 0; cursor:pointer; list-style:none; }
+  details.dd summary::-webkit-details-marker { display:none; }
+  details.dd summary::after { content:"▾"; float:right; color:var(--mute); }
+  details.dd[open] summary::after { content:"▴"; }
+  .ddbox { border-top:1px solid var(--line); padding:4px 0 6px; }
+  label.chk { display:flex; align-items:center; gap:8px; margin:0; padding:7px 0; color:var(--ink); font-size:15px; }
+  label.chk input { width:auto; }
+  .shopname { font-weight:700; font-size:17px; margin:2px 2px 10px; }
+  .cat { font-weight:700; color:var(--brand); font-size:15px; margin:14px 0 2px; }
+  .cat:first-child { margin-top:0; }
+  .req { color:var(--bad); font-weight:700; }
+  input[readonly] { background:#faf5ee; }
+  /* bảng thanh toán nhiều bữa: cuộn ngang trong thẻ, cột tên đứng yên */
+  .tblwrap { overflow-x:auto; margin:0 -14px; padding:0 14px; }
+  table.pay { border-collapse:collapse; font-size:14px; white-space:nowrap; min-width:100%; }
+  table.pay th, table.pay td { padding:6px 8px; border-bottom:1px solid var(--line); text-align:right; }
+  table.pay th { color:var(--mute); font-weight:600; }
+  table.pay th:first-child, table.pay td:first-child { text-align:left; position:sticky; left:0; background:var(--card); }
+  table.pay tr.me td { background:var(--brand2); }
+  table.pay tfoot td { font-weight:700; border-bottom:0; }
+  table.pay .chip { min-height:32px; padding:3px 10px; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Deeyu Food</h1>
+  <div id="navBtns" class="hidden">
+    <button id="backBtn" title="Quay lại trang trước">⬅</button>
+    <button id="fwdBtn" title="Tới trang tiếp">➡</button>
+    <button id="homeBtn" title="Về trang chủ">🏠</button>
+    <span id="userBadge" title="Người dùng"></span>
+    <button id="logoutBtn">Đăng xuất</button>
+  </div>
+</header>
+<main id="app"></main>
+<div id="barHost"></div>
+
+<script>
+/* ===== CẤU HÌNH ===== */
+const API_URL = "https://script.google.com/macros/s/AKfycbzCbe5gifV9WYR1dlZx-lCs0wj1z2vmhyx2jj2XW3PvxizkaZ3ptjg4jnV1meSSYdQ/exec";               // Dán URL Web App của Apps Script vào đây
+const DEFAULT_PLACE = "Cổng chui Bách Khoa";
+
+// [mã, tên, BIN trong mã VietQR]
+const BANKS = [
+  ["MOMO","Ví MoMo",""],["VCB","Vietcombank","970436"],["TCB","Techcombank","970407"],["MB","MB Bank","970422"],["ACB","ACB","970416"],
+  ["BIDV","BIDV","970418"],["CTG","VietinBank","970415"],["VBA","Agribank","970405"],["VPB","VPBank","970432"],["TPB","TPBank","970423"],
+  ["STB","Sacombank","970403"],["VIB","VIB","970441"],["SHB","SHB","970443"],["HDB","HDBank","970437"],["MSB","MSB","970426"],
+  ["OCB","OCB","970448"],["EIB","Eximbank","970431"],["LPB","LPBank","970449"],["SEAB","SeABank","970440"],["NAB","Nam A Bank","970428"],
+  ["BAB","BacABank","970409"],["ABB","ABBank","970425"],["VAB","VietABank","970427"],["PVCB","PVcomBank","970412"],["SCB","SCB","970429"],
+  ["NCB","NCB","970419"],["KLB","Kienlongbank","970452"],["PGB","PGBank","970430"],["VCCB","Viet Capital Bank","970454"],
+  ["BVB","BaoVietBank","970438"],["CAKE","CAKE by VPBank","546034"],["UBANK","Ubank by VPBank","546035"],["TIMO","Timo","963388"]
+];
+const bankLabel = c => { const b = BANKS.find(x => x[0] === c); return b ? `${b[0]} - ${b[1]}` : c; };
+// "VCB - Vietcombank" / "vcb" / "vietcombank" / "momo" -> mã ngân hàng, hoặc "" nếu không có trong danh sách
+const bankFromInput = v => {
+  v = String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const b = BANKS.find(x => v === x[0].toLowerCase() || v === x[1].toLowerCase() || v === `${x[0]} - ${x[1]}`.toLowerCase() || (v === "mo mo" && x[0] === "MOMO"));
+  return b ? b[0] : "";
+};
+
+/* ===== TIỆN ÍCH ===== */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+// Mọi giá hiển thị theo ngàn đồng: 35000 -> "35K", 12500 -> "12.5K"
+const money = n => { const k = Number(n) / 1000; return (Number.isInteger(k) ? k : +k.toFixed(1)) + "K"; };
+const normPhone = p => { p = String(p || "").replace(/[\s.\-()]/g, "").replace(/^\+84/, "0").replace(/^84/, "0"); return /^0\d{9}$/.test(p) ? p : ""; };
+// Bỏ dấu: "Trà đào" -> "Tra dao" (tìm món không dấu, nội dung chuyển khoản)
+const unaccent = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
+const fold = s => unaccent(s).toLowerCase();
+// Nội dung chuyển khoản: "HOANG 0901234567" (ngân hàng giới hạn ~25 ký tự, không dấu)
+const transferNote = () => {
+  let n = unaccent(state.user.name).replace(/[^A-Za-z0-9 ]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+  if (n.length > 14) n = n.slice(0, 15).replace(/\s*\S*$/, "") || n.slice(0, 14);   // cắt ở khoảng trắng, không cắt giữa chữ
+  return (n ? n + " " : "") + state.user.phone;
+};
+// "10:30" -> ISO của hôm nay lúc 10:30 (đã qua hơn 1 tiếng thì hiểu là ngày mai); không hợp lệ -> ""
+// Giờ nhập theo 24 giờ: "930" / "9:30" / "09:30" -> "09:30"; sai hoặc ngoài 00:00–23:59 -> ""
+const normTime = v => {
+  const m = String(v).trim().match(/^(\d{1,2})[:h.]?(\d{2})$/);
+  return m && +m[1] < 24 && +m[2] < 60 ? m[1].padStart(2, "0") + ":" + m[2] : "";
+};
+document.addEventListener("focusout", e => { if (e.target.matches?.("[data-time]")) e.target.value = normTime(e.target.value) || e.target.value; });
+const timeToIso = hm => {
+  hm = normTime(hm);
+  if (!hm) return "";
+  const d = new Date(); d.setHours(+hm.slice(0, 2), +hm.slice(3), 0, 0);
+  if (d < Date.now() - 3600e3) d.setDate(d.getDate() + 1);
+  return d.toISOString();
+};
+const isoToTime = iso => { const d = new Date(iso); return iso && !isNaN(d) ? d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false }) : ""; };
+// "⏰ Chốt 10:30 · còn 25 phút" / "⏰ Quá giờ chốt 10:30"
+function dlText(iso, status) {
+  const hm = isoToTime(iso);
+  if (!hm) return "";
+  if (status !== "open") return `Giờ chốt ${hm}`;
+  const m = Math.round((new Date(iso) - Date.now()) / 60000);
+  if (m < 0) return `⏰ Quá giờ chốt ${hm}`;
+  return `⏰ Chốt ${hm} · còn ${m < 60 ? m + " phút" : Math.floor(m / 60) + " giờ" + (m % 60 ? " " + (m % 60) + " phút" : "")}`;
+}
+const dlSpan = s => s.deadline ? `<span data-dl="${esc(s.deadline)}" data-st="${esc(s.status)}">${dlText(s.deadline, s.status)}</span>` : "";
+setInterval(() => document.querySelectorAll("[data-dl]").forEach(el => el.textContent = dlText(el.dataset.dl, el.dataset.st)), 30000);
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem("deeyu_user")); } catch { return null; } },
+  set(u) { try { localStorage.setItem("deeyu_user", JSON.stringify(u)); } catch {} },
+  clear() { try { localStorage.removeItem("deeyu_user"); } catch {} }
+};
+// Ghi nhớ trên máy: tên quán đã dùng + thông tin nhận tiền gần nhất
+const mem = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem("deeyu_" + k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("deeyu_" + k, JSON.stringify(v)); } catch {} }
+};
+
+async function api(action, payload = {}) {
+  if (!API_URL) throw new Error("Chưa cấu hình API_URL trong index.html");
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action, phone: state.user?.phone, token: state.user?.token, ...payload })
+  });
+  const j = await res.json();
+  if (!j.ok) {
+    if (j.error === "Hành động không hợp lệ") throw new Error("Backend chưa cập nhật: dán lại apps-script/Code.gs vào Apps Script rồi Triển khai → Quản lý bản triển khai → Phiên bản mới");
+    // Token sai / hết hạn (VD vừa đổi PIN): đăng xuất, quay về màn hình đăng nhập
+    if (/^AUTH/.test(j.error) && action !== "login" && state.user) { store.clear(); state.user = null; go("login", null, true); }
+    throw new Error(String(j.error).replace(/^AUTH:\s*/, ""));
+  }
+  return j.data;
+}
+
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+/* ===== TRẠNG THÁI ===== */
+// Bản cũ chưa có token (trước khi có mã PIN) -> phải đăng nhập lại
+if (store.get() && !store.get().token) store.clear();
+const state = { user: store.get(), view: "login", sid: null, data: null, cart: [], sel: {}, preview: {}, ddOpen: new Set(), tab: "com", mtab: "com", timer: null, panel: "order",
+                q: "", cartOpen: false, src: {}, mstep: {} };
+
+function setBar(html) { $("#barHost").innerHTML = html ? `<div class="bar"><div>${html}</div></div>` : ""; }
+// Điều hướng gắn với lịch sử trình duyệt: nút Back của điện thoại = lùi màn hình; link "#s=<mã phiên>" mở thẳng phiên đó
+// Bảng thanh toán: "#pay=<mã1>,<mã2>&cap=60" (cap = trần hỗ trợ, nghìn đồng) -> gửi link là mọi người thấy cùng một bảng
+const urlOf = (view, sid) => view === "session" ? "#s=" + sid : view === "create" ? "#new" + (state.newKind === "nuoc" ? "=nuoc" : "") : view === "pay" ? "#pay=" + (sid || "") : view === "stats" ? "#stats" : view === "addmenu" ? "#menu" : location.pathname + location.search;
+function fromHash() {
+  const m = location.hash.match(/^#s=([\w-]+)/), p = location.hash.match(/^#pay(?:=([\w,&=-]*))?$/), n = location.hash.match(/^#new(=nuoc)?$/);
+  if (m) return { view: "session", sid: m[1] };
+  if (p) return { view: "pay", sid: p[1] || "" };
+  if (n) { state.newKind = n[1] ? "nuoc" : "com"; return { view: "create", sid: null }; }
+  return { view: location.hash === "#stats" ? "stats" : location.hash === "#menu" ? "addmenu" : "home", sid: null };
+}
+
+function show({ view, sid }) {
+  clearInterval(state.timer);
+  state.view = view; state.sid = sid; state.data = null; state.q = ""; state.cartOpen = false; state.cartDirty = false; saver.msg = "";
+  render();
+}
+let maxD = 0;   // trang sâu nhất đã đi tới, để biết còn trang phía sau cho nút ➡ hay không
+function go(view, sid = null, reset = false) {
+  if (state.view === "session" && state.cartDirty && !confirm("Bạn chưa bấm Đặt – đơn chưa được lưu. Vẫn rời màn hình này?")) return;
+  const d = reset ? 0 : (history.state?.d ?? 0) + 1;
+  maxD = d;
+  history[reset ? "replaceState" : "pushState"]({ view, sid, d }, "", urlOf(view, sid));
+  show({ view, sid });
+}
+window.addEventListener("popstate", e => show(e.state || fromHash()));
+
+function render() {
+  const u = state.user;
+  $("#navBtns").classList.toggle("hidden", !u);
+  $("#userBadge").textContent = u?.name || "";
+  const d = history.state?.d ?? 0;
+  $("#backBtn").disabled = d <= 0;
+  $("#fwdBtn").disabled = d >= maxD;
+  $("#homeBtn").disabled = state.view === "home";
+  setBar("");
+  if (!u) return viewLogin();
+  if (state.view === "create") return viewCreate();
+  if (state.view === "session") return viewSession();
+  if (state.view === "pay") return viewPay();
+  if (state.view === "stats") return viewStats();
+  if (state.view === "addmenu") return viewAddMenu();
+  return viewHome();
+}
+
+$("#logoutBtn").onclick = () => { store.clear(); state.user = null; go("login", null, true); };
+$("#backBtn").onclick = () => history.back();
+$("#fwdBtn").onclick = () => history.forward();
+$("#homeBtn").onclick = () => go("home");
+
+// Enter trong ô nhập = bấm nút chính của màn hình
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter" || e.isComposing || !e.target.matches("input")) return;
+  if (e.target.classList.contains("note")) return e.target.blur();
+  const btn = $("#go") || $("#ok");
+  if (btn && !btn.disabled) { e.preventDefault(); btn.click(); }
+});
+
+/* ===== ĐĂNG NHẬP ===== */
+// stage: "" = nhập SĐT; "register" = số mới (nhập tên). Không dùng mã PIN
+function viewLogin(stage = "", phone = "") {
+  $("#title").textContent = "Deeyu Food";
+  $("#app").innerHTML = `
+    <div class="card">
+      <h2>${{ "": "Đăng nhập bằng số điện thoại", register: "Tạo tài khoản" }[stage]}</h2>
+      <label>Số điện thoại</label>
+      <input id="phone" inputmode="tel" placeholder="09xx xxx xxx" value="${esc(phone)}" ${stage ? "readonly" : ""}>
+      ${stage === "register" ? `<label>Tên hiển thị</label><input id="name" maxlength="40" placeholder="VD: Hoàng">` : ""}
+      <div class="err" id="err"></div>
+      <button class="primary" id="go">${stage === "register" ? "Tạo tài khoản & vào" : stage ? "Vào" : "Tiếp tục"}</button>
+      ${stage ? `<button class="ghost" id="other" style="width:100%;margin-top:8px">Dùng số khác</button>` : ""}
+    </div>`;
+  ($("#name") || $("#phone")).focus();
+  if ($("#other")) $("#other").onclick = () => viewLogin();
+  $("#go").onclick = async () => {
+    const err = m => $("#err").textContent = m;
+    const p = normPhone($("#phone").value);
+    if (!p) return err("Số điện thoại phải gồm 10 số, bắt đầu bằng 0");
+    const body = {};
+    if (stage === "register" && !(body.name = $("#name").value.trim())) return err("Nhập tên của bạn");
+    $("#go").disabled = true;
+    try {
+      state.user = { phone: p };
+      const r = await api("login", body);
+      if (r.stage === "register") { state.user = null; return viewLogin("register", p); }
+      if (r.stage) throw new Error("Backend Apps Script chưa cập nhật bản không PIN – hãy dán lại Code.gs và triển khai lại");
+      state.user = { phone: r.phone, name: r.name, token: r.token };
+      store.set(state.user);
+      const t = fromHash();   // mở bằng link phiên -> vào thẳng phiên đó
+      go(t.view, t.sid, true);
+    } catch (e) { state.user = null; err(e.message); $("#go").disabled = false; }
+  };
+}
+
+/* ===== TRANG CHỦ: DANH SÁCH PHIÊN ===== */
+async function viewHome() {
+  $("#title").textContent = "Xin chào, " + state.user.name;
+  $("#app").innerHTML = `
+    <div class="tiles">
+      <button class="tile main" data-new="com"><span class="ti">🍚</span><b>Tạo phiên<br>đặt cơm</b><span class="mute">Mở cho mọi người đặt cơm</span></button>
+      <button class="tile main" data-new="nuoc"><span class="ti">🥤</span><b>Tạo phiên<br>đặt nước</b><span class="mute">Mở cho mọi người đặt nước</span></button>
+      <button class="tile" id="tAdd"><span class="ti">➕</span><b>Thêm<br>menu</b><span class="mute">AI đọc ảnh / văn bản, lưu quán có sẵn</span></button>
+      <button class="tile" id="tStats"><span class="ti">📊</span><b>Thống kê<br>thu chi</b><span class="mute" id="tStatsN">Xem chi tiết</span></button>
+    </div>
+    <h2 id="listHead">Phiên hiện có</h2>
+    <div id="list" class="mute">Đang tải…</div>`;
+  document.querySelectorAll("[data-new]").forEach(b => b.onclick = () => { state.newKind = b.dataset.new; go("create"); });
+  $("#tAdd").onclick = () => { state.am = null; go("addmenu"); };
+  $("#tStats").onclick = () => go("stats");
+  // Số liệu sống trên ô Thu chi; backend cũ chưa có myStats thì giữ chữ mặc định
+  api("myStats", {}).then(r => {
+    if (!$("#tStatsN")) return;
+    const toCollect = r.collect.total - r.collect.got, toPay = r.owe.total - r.owe.paid;
+    $("#tStatsN").textContent = toCollect > 0 ? `Chưa thu ${money(toCollect)}` : toPay > 0 ? `Cần trả ${money(toPay)}` : "Đã thanh toán đủ ✓";
+  }).catch(() => {});
+  try {
+    const list = await api("listSessions");
+    $("#list").innerHTML = list.length ? list.map(s => `
+      <div class="card row" data-id="${esc(s.id)}" style="cursor:pointer">
+        <div class="grow">
+          <b>${s.kind === "nuoc" ? "🥤 " : s.kind === "com" ? "🍚 " : ""}${esc(s.shop || (s.kind === "nuoc" ? "Phiên đặt nước" : "Phiên đặt cơm"))}</b><br>
+          <span class="mute">Người đặt: ${esc(s.owner_name)}${s.owner_phone === state.user.phone ? " (bạn)" : ""}</span><br>
+          <span class="mute">${esc(s.place)} · ${new Date(s.created).toLocaleString("vi-VN", { hour:"2-digit", minute:"2-digit", day:"2-digit", month:"2-digit" })}</span><br>
+          <span class="mute">${s.people ? `👥 ${s.people} người đã đặt` : "Chưa ai đặt"}${s.deadline ? " · " + dlSpan(s) : ""}${s.subsidy ? ` · 🎁 hỗ trợ ${money(s.subsidy)}/suất` : ""}</span>
+        </div>
+        <span class="tag ${s.status === "open" ? "" : "locked"}">${s.status === "open" ? "Đang mở" : "Đã chốt"}</span>
+      </div>`).join("") : `<div class="card mute">Chưa có phiên nào. Hãy tạo phiên đầu tiên!</div>`;
+    document.querySelectorAll("[data-id]").forEach(el => el.onclick = () => go("session", el.dataset.id));
+  } catch (e) { $("#list").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+/* ===== THỐNG KÊ THU CHI ===== */
+const STAT_RANGES = [["week", "Tuần này"], ["month", "Tháng này"], ["all", "Tất cả"]];
+function statsSince(range) {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  if (range === "week") d.setDate(d.getDate() - (d.getDay() + 6) % 7);   // thứ Hai
+  else if (range === "month") d.setDate(1);
+  else return "";
+  return d.toISOString();
+}
+async function viewStats() {
+  $("#title").textContent = "Thống kê thu chi";
+  const range = state.statsRange ||= "week";
+  state.statsTab ||= "thu";
+  $("#app").innerHTML = `
+    <div class="tabs sm">${[["thu", "💰 Tiền thu"], ["chi", "💸 Tiền chi"], ["hotro", "🎁 Hỗ trợ"]].map(([k, l]) => `<button data-stab="${k}" class="${k === state.statsTab ? "on" : ""}">${l}</button>`).join("")}</div>
+    <div class="chips" style="margin-bottom:8px">${STAT_RANGES.map(([k, l]) => `<button class="chip ${k === range ? "on" : ""}" data-range="${k}">${l}</button>`).join("")}</div>
+    <div id="stats" class="mute">Đang tải…</div>
+    <button class="ghost" id="payT" style="width:100%;margin:4px 0 12px">📊 Bảng thanh toán nhiều bữa</button>`;
+  document.querySelectorAll("[data-range]").forEach(b => b.onclick = () => { state.statsRange = b.dataset.range; viewStats(); });
+  $("#payT").onclick = () => go("pay", "");
+  let r;
+  const day = iso => new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+  const row = (l, v, cls = "") => `<div class="statrow ${cls}"><span>${l}</span><b ${cls === "ok" ? 'style="color:var(--ok)"' : cls === "bad" ? 'style="color:var(--bad)"' : ""}>${money(v)}</b></div>`;
+  const ico = k => k === "nuoc" ? "🥤" : k === "com" ? "🍚" : "🍽";
+  const itemRow = it => `<div class="statrow mute"><span>${day(it.date)} ${ico(it.kind)} ${esc(it.shop || "(chưa đặt tên quán)")}</span><span>${money(it.due)} ${it.paid ? `<span class="tag ok">Đã trả</span>` : it.claimed ? `<span class="tag">Báo đã chuyển</span>` : `<span class="tag locked">Chưa trả</span>`}</span></div>`;
+  const drawThu = () => {
+    const c = r.collect, owing = c.people.filter(p => p.unpaid > 0), done = c.people.filter(p => p.unpaid <= 0);
+    return `<div class="card"><h2>💰 Tôi thu hộ</h2><div class="mute">Các phiên do bạn tạo</div>
+        ${row("Cần thu", c.total, "big")}${row("Đã nhận", c.got, "ok")}${row("Chưa nhận", c.total - c.got, c.total - c.got > 0 ? "bad" : "")}</div>
+      <div class="card"><h2>Còn ${owing.length} người chưa trả</h2>
+        ${owing.length ? owing.map(p => `<div class="item"><div class="row"><div class="grow"><b>${esc(p.name)}</b> <span class="mute">${esc(p.phone)}</span></div><b style="color:var(--bad)">${money(p.unpaid)}</b></div>${p.items.map(itemRow).join("")}</div>`).join("") : `<div class="mute">Mọi người đã trả đủ ✓</div>`}</div>
+      ${done.length ? `<div class="card"><details><summary>Đã trả đủ (${done.length} người)</summary>${done.map(p => `<div class="item"><div class="row"><div class="grow"><b>${esc(p.name)}</b> <span class="mute">${esc(p.phone)}</span></div><b>${money(p.total)}</b></div>${p.items.map(itemRow).join("")}</div>`).join("")}</details></div>` : ""}`;
+  };
+  const drawChi = () => {
+    const o = r.owe, owing = o.owners.filter(w => w.unpaid > 0), done = o.owners.filter(w => w.unpaid <= 0);
+    return `<div class="card"><h2>💸 Tôi phải trả</h2><div class="mute">Đơn của bạn ở phiên người khác</div>
+        ${row("Tổng", o.total, "big")}${row("Đã trả", o.paid, "ok")}${row("Chưa trả", o.total - o.paid, o.total - o.paid > 0 ? "bad" : "")}</div>
+      <div class="card"><h2>Chưa trả cho ${owing.length} người</h2>
+        ${owing.length ? owing.map((w, i) => `<div class="item"><div class="row"><div class="grow"><b>${esc(w.name)}</b> <span class="mute">${esc(w.phone)}</span></div><b style="color:var(--bad)">${money(w.unpaid)}</b></div>${w.items.map(itemRow).join("")}
+          <button class="ghost" data-qr="${i}" style="margin-top:6px">💳 Hiện QR chuyển ${money(w.unpaid)}</button><div data-qrbox="${i}"></div></div>`).join("") : `<div class="mute">Bạn đã trả đủ ✓</div>`}</div>
+      ${done.length ? `<div class="card"><details><summary>Đã trả đủ (${done.length} người)</summary>${done.map(w => `<div class="item"><div class="row"><div class="grow"><b>${esc(w.name)}</b></div><b>${money(w.total)}</b></div>${w.items.map(itemRow).join("")}</div>`).join("")}</details></div>` : ""}`;
+  };
+  const drawHotro = () => `<div class="card"><h2>🎁 Deeyu hỗ trợ</h2>
+      ${row("Trong đơn của tôi", r.subsidyMine)}${row("Trong các phiên tôi tạo (cho người khác)", r.subsidyOwned)}</div>
+    <div class="card"><h2>Theo từng bữa</h2>
+      ${r.subsidyList.length ? r.subsidyList.map(s => `<div class="item"><div class="row"><div class="grow"><b>${day(s.date)} ${ico(s.kind)} ${esc(s.shop || "(chưa đặt tên quán)")}</b><br><span class="mute">Mức hỗ trợ ${money(s.unit)}/${s.kind === "nuoc" ? "ly" : "suất"}</span></div></div>
+        ${s.mine ? `<div class="statrow"><span>Đơn của bạn: ${s.mine.units} ${s.kind === "nuoc" ? "ly" : "suất"}</span><b>${money(s.mine.amount)}</b></div>` : ""}
+        ${s.total ? `<div class="statrow"><span>Hỗ trợ cho ${s.people.length} người</span><b>${money(s.total)}</b></div>${s.people.map(p => `<div class="statrow mute"><span>${esc(p.name)} · ${p.units} ${s.kind === "nuoc" ? "ly" : "suất"}</span><span>${money(p.amount)}</span></div>`).join("")}` : ""}</div>`).join("") : `<div class="mute">Chưa có khoản hỗ trợ nào trong kỳ này.</div>`}</div>`;
+  const draw = () => {
+    if (state.view !== "stats" || !$("#stats")) return;
+    $("#stats").innerHTML = { thu: drawThu, chi: drawChi, hotro: drawHotro }[state.statsTab]();
+    document.querySelectorAll("[data-qr]").forEach(b => b.onclick = () => {
+      const w = r.owe.owners.filter(x => x.unpaid > 0)[+b.dataset.qr], box = $(`[data-qrbox="${b.dataset.qr}"]`);
+      box.innerHTML = box.innerHTML ? "" : `<div class="card" style="margin-top:8px">${payBoxHtml(w, w.unpaid)}</div>`;
+      paintQrs();
+    });
+  };
+  document.querySelectorAll("[data-stab]").forEach(b => b.onclick = () => {
+    state.statsTab = b.dataset.stab;
+    document.querySelectorAll("[data-stab]").forEach(x => x.classList.toggle("on", x === b));
+    if (r) draw();
+  });
+  try {
+    r = await api("myStats", { since: statsSince(range) });
+    if (!r.collect?.people || !r.owe?.owners || !r.subsidyList) { r = null; throw new Error("Backend chưa cập nhật: dán lại apps-script/Code.gs vào Apps Script rồi Triển khai → Quản lý bản triển khai → Phiên bản mới"); }
+    draw();
+  }
+  catch (e) { if ($("#stats")) $("#stats").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+/* ===== THÊM MENU (từ trang chủ) ===== */
+// 3 bước: ① nhập ảnh / văn bản cho AI đọc → ② xác nhận món → ③ đặt tên quán và thêm vào menu có sẵn (Presets)
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("TIMEOUT: quá " + ms / 1000 + " giây")), ms))]);
+const presetText = rows => groupsText(rows.reduce((groups, r) => {
+  let g = groups.find(x => x.cat === r.cat); if (!g) groups.push(g = { cat: r.cat, lines: [] });
+  r.items.forEach(i => g.lines.push(`${i.size ? `${r.name} (${i.size})` : r.name} - ${money(i.price)}`));
+  return groups;
+}, []));
+/* --- Import Excel: bảng tính -> chữ menu ("# Mục" + "Tên (size) - 25K") --- */
+let xlsxLoading;
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  return xlsxLoading ||= new Promise((ok, fail) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    sc.onload = ok; sc.onerror = () => { xlsxLoading = null; fail(new Error("Không tải được bộ đọc Excel (cần internet)")); };
+    document.head.appendChild(sc);
+  });
+}
+// Ô giá: số < 1000 hiểu là nghìn đồng (25 -> 25K); chữ "25k", "25.000đ" cũng được; không phải giá -> 0
+const cellPrice = v => {
+  if (typeof v === "number") return Math.round(v < 1000 ? v * 1000 : v);
+  const s = String(v ?? "").trim();
+  return /^\d[\d.,]*\s*(k|đ|d|₫|vnđ|vnd)?$/i.test(s) ? (parseMenuLine("x " + s)[0]?.price || 0) : 0;
+};
+// Tiêu đề cột có thể nằm ở BẤT KỲ hàng nào (file nhiều bảng: mỗi mục một bảng có hàng tiêu đề riêng). Hàng tiêu đề có "Tên món" cùng "Giá"/"Size"/cột size (S, M, L, XL, 2XL…);
+// "Mục/Nhóm" tuỳ chọn. Dòng chỉ có một ô chữ = tên mục (áp cho các món sau nó). Hàng trước tiêu đề đầu tiên (tên file, số Zalo…) bỏ qua.
+function excelToMenuText(rows) {
+  const SIZE_RE = /^(xs|s|m|l|xl|xxl|\dxl)$/, out = [];
+  let cols = null, cat = "", catOut = null;
+  rows.forEach(raw => {
+    const r = raw.map(c => typeof c === "string" ? c.trim() : c), cells = r.filter(c => c !== "" && c != null);
+    if (!cells.length) return;
+    const head = r.map(c => fold(c));
+    const find = re => head.findIndex(h => re.test(h));
+    const iName = find(/^(ten|ten mon|mon|name|item)$/);
+    const sizeCols = head.map((h, i) => SIZE_RE.test(h) ? i : -1).filter(i => i >= 0);
+    const priceCols = head.map((h, i) => /^(gia|price|don gia)\b/.test(h) ? i : -1).filter(i => i >= 0);
+    if (iName >= 0 && (sizeCols.length || priceCols.length)) {   // hàng tiêu đề mới
+      cols = { name: iName, cat: find(/^(muc|nhom|loai|danh muc|category)$/), size: find(/^(size|co|kich co)$/), sizeCols, priceCols, labels: head.map(h => h.toUpperCase()) };
+      return;
+    }
+    if (cells.length === 1 && typeof cells[0] === "string") { if (cols || !/[:|]/.test(cells[0])) cat = cleanHeading(cells[0]); return; }   // tên mục (không phải dòng ghi chú có ":" "|")
+    if (!cols) return;
+    if (cols.cat >= 0 && String(r[cols.cat] ?? "") !== "") cat = cleanHeading(String(r[cols.cat]));
+    const name = cleanName(String(r[cols.name] ?? ""));
+    if (!name) return;
+    const prices = cols.sizeCols.length ? cols.sizeCols.map(i => [cols.labels[i], cellPrice(r[i])])
+      : cols.priceCols.map(i => [cols.size >= 0 ? String(r[cols.size] ?? "").trim() : "", cellPrice(r[i])]);
+    prices.filter(p => p[1] > 0).forEach(([size, p]) => {
+      if (cat !== catOut) { out.push("# " + cat); catOut = cat; }
+      out.push(`${name}${size ? ` (${size})` : ""} - ${money(p)}`);
+    });
+  });
+  return out.join("\n");
+}
+// Lấy sheet đầu tiên đọc ra được món (file có thể kèm sheet "bảng giá lọc" trùng nội dung)
+async function readExcelFile(file) {
+  await loadXLSX();
+  const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+  for (const n of wb.SheetNames) {
+    const text = excelToMenuText(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "", raw: true }));
+    if (text) return text;
+  }
+  return "";
+}
+function viewAddMenu() {
+  $("#title").textContent = "Thêm menu";
+  const am = state.am ||= { step: 1, type: "com", src: "img", text: "", rows: [], shop: "", warn: "", done: false };
+  state.pendingNote = { com: [], nuoc: [], shops: { com: "", nuoc: "" } };   // analyzeMenu dùng để bỏ ghi chú trùng
+  const has = am.rows.length > 0, TL = TYPE_INFO[am.type].label;
+  const stepBar = `<div class="tabs sm">${["Nhập", "Xác nhận", "Đặt tên & thêm"].map((l, i) => `<button data-step="${i + 1}" class="${am.step === i + 1 ? "on" : ""}" ${i && !has ? "disabled" : ""}>${i + 1}. ${l}</button>`).join("")}</div>`;
+  let body = "";
+  if (am.step === 1) body = `<div class="card"><h2>① Nhập menu</h2>
+      <div class="tabs sm">${["com", "nuoc"].map(t => `<button data-type="${t}" class="${am.type === t ? "on" : ""}">${TYPE_INFO[t].icon} Menu ${TYPE_INFO[t].label}</button>`).join("")}</div>
+      <div class="tabs sm">${[["img", "📷 Ảnh"], ["text", "📝 Dán văn bản"], ["xlsx", "📊 Excel"]].map(([k, l]) => `<button data-src2="${k}" class="${am.src === k ? "on" : ""}">${l}</button>`).join("")}</div>
+      ${am.src === "img" ? `<input type="file" id="amImg" accept="image/*"><div class="mute" style="margin-top:4px">Chọn ảnh chụp menu – AI đọc món và giá (tối đa khoảng 15 giây).</div>`
+        : am.src === "xlsx" ? `<input type="file" id="amXlsx" accept=".xlsx,.xls,.csv"><div class="mute" style="margin-top:4px">Chọn file Excel (.xlsx, .xls, .csv), đọc sheet đầu tiên. Hàng đầu là tiêu đề: <b>Mục</b> (tuỳ chọn), <b>Tên món</b>, <b>Size</b> (tuỳ chọn), <b>Giá</b> – hoặc các cột giá theo size <b>S / M / L</b>. Giá 25 hiểu là 25K.</div>`
+        : `<textarea id="amText" placeholder="Mỗi dòng một món có giá, VD:\n${esc(TYPE_INFO[am.type].eg)}">${esc(am.text)}</textarea>
+           <button class="primary" id="amRead">AI đọc văn bản</button>
+           <div class="mute" style="margin-top:4px">Có thể Ctrl+V ảnh vào ô này để AI đọc ảnh.</div>`}
+      <div class="mute" id="amStatus" style="margin-top:8px;white-space:pre-line">${has ? `Đã có kết quả đọc trước đó (${am.rows.length} dòng) – bấm bước 2 để xem lại.` : ""}</div></div>`;
+  else if (am.step === 2) {
+    let html = "", last = null;
+    const price = r => r.top ? (r.items[0].price ? "+" + money(r.items[0].price) : "") : r.items.map(i => (i.size ? i.size + " " : "") + money(i.price)).join(" · ");
+    am.rows.forEach((r, i) => {
+      if (r.cat !== last) { html += `<div class="cat">${r.cat ? esc(r.cat) : "Chưa có mục"}${r.top ? (r.items[0].price ? " (cộng thêm giá)" : " (chọn kèm combo, không cộng giá)") : ""}</div>`; last = r.cat; }
+      html += `<label class="chk"><input type="checkbox" data-row="${i}" ${r.on ? "checked" : ""}> <span><b>${esc(r.name)}</b> <span class="mute">${esc(price(r))}</span></span></label>`;
+    });
+    body = `<div class="card"><h2>② Xác nhận món ${TL}</h2>
+      <div class="mute">Bỏ tích những dòng AI đọc sai. Chỉ các dòng còn tích mới được thêm.</div>
+      ${am.warn ? `<div class="err">${esc(am.warn)}</div>` : ""}${html}
+      <div class="mute" id="amCount" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:8px"><button class="ghost" id="amBack">← Nhập lại</button><button class="primary grow" id="amNext" style="margin:0">Tiếp: đặt tên →</button></div></div>`;
+  } else body = am.done ? `<div class="card"><h2>✓ Đã thêm "${esc(am.shop)}"</h2><div class="mute">Quán đã nằm trong menu có sẵn. Khi tạo phiên, chọn ở bước Menu là thấy.</div>
+      <div class="row" style="margin-top:10px"><button class="ghost grow" id="amAgain">＋ Thêm quán khác</button><button class="primary grow" id="amHome" style="margin:0">Về trang chủ</button></div></div>`
+    : `<div class="card"><h2>③ Đặt tên & thêm menu ${TL}</h2>
+      <label>Tên quán</label><input id="amShop" list="amShops" maxlength="60" autocomplete="off" value="${esc(am.shop)}" placeholder="VD: Cơm gà Nhà Lá">
+      <datalist id="amShops"></datalist>
+      <div class="mute" id="amExist" style="margin-top:6px"></div>
+      <div class="mute" style="margin-top:6px">${am.rows.filter(r => r.on).length} dòng món ${TL} sẽ được thêm. App tự kiểm tra trùng quán bằng AI trước khi lưu.</div>
+      <div class="mute" id="amStatus" style="margin-top:6px"></div>
+      <div class="row" style="margin-top:8px"><button class="ghost" id="amBack2">← Quay lại</button><button class="primary grow" id="amSave" style="margin:0">➕ Thêm menu</button></div></div>`;
+  $("#app").innerHTML = stepBar + body;
+  document.querySelectorAll("[data-step]").forEach(b => b.onclick = () => { am.step = +b.dataset.step; viewAddMenu(); });
+  document.querySelectorAll("[data-type]").forEach(b => b.onclick = () => { am.type = b.dataset.type; am.rows = []; viewAddMenu(); });
+  document.querySelectorAll("[data-src2]").forEach(b => b.onclick = () => { am.src = b.dataset.src2; viewAddMenu(); });
+  const status = m => { const el = $("#amStatus"); if (el) el.textContent = m; };
+  // Có chữ menu (định dạng "# Mục" + "Tên - giá") -> các dòng xem trước, sang bước ②
+  const finish = (text, shop, warn) => {
+    const r = analyzeMenu(text, am.type);
+    am.rows = previewRows(r.items).map(x => ({ ...x, on: true }));
+    am.shop = am.shop || shop || r.shop || ""; am.warn = warn || "";
+    if (!am.rows.length) return status("Không đọc được món nào có giá – thử ảnh rõ hơn hoặc dán lại văn bản.");
+    am.step = 2; viewAddMenu();
+  };
+  const readImage = async file => {
+    const t0 = Date.now(); let prog = "";
+    const tick = setInterval(() => status(`Đang đọc ảnh bằng AI… ${Math.round((Date.now() - t0) / 1000)}s ${prog}`), 500);
+    state.busy = true;
+    try {
+      const ai = await aiReadMenu(file, m => prog = "– " + m);
+      clearInterval(tick); state.busy = false;
+      finish(ai.text, ai.shop, ai.late ? `⚠ ${ai.late} phần ảnh chưa đọc kịp trong 15 giây – thiếu món thì quay lại chọn ảnh khác.` : "");
+    } catch (e) {
+      clearInterval(tick); state.busy = false;
+      status("Lỗi: " + (e.message === "NO_AI_KEY" ? "Chưa cấu hình GEMINI_API_KEY ở backend" : e.message.replace(/^TIMEOUT:\s*/, "")));
+    }
+  };
+  if ($("#amImg")) $("#amImg").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) readImage(f); };
+  if ($("#amXlsx")) $("#amXlsx").onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    status("Đang đọc file Excel…");
+    try { finish(await readExcelFile(f), "", ""); }
+    catch (err) { status("Lỗi: " + err.message); }
+  };
+  if ($("#amText")) {
+    $("#amText").oninput = e => am.text = e.target.value;
+    $("#amText").addEventListener("paste", e => {
+      const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith("image/"));
+      if (f) { e.preventDefault(); readImage(f); }
+    });
+    $("#amRead").onclick = async () => {
+      const text = $("#amText").value.trim();
+      if (!text) return status("Chưa có văn bản để đọc.");
+      $("#amRead").disabled = true; status("AI đang đọc văn bản…");
+      let ai = null;
+      if (analyzeMenu(text, am.type).items.some(i => i.cat === OPT_CAT)) { $("#amRead").disabled = false; return finish(text, "", ""); }   // menu combo: đọc cục bộ (AI hay làm rơi món không giá)
+      try { ai = await withTimeout(api("readMenuText", { text }), 15000); } catch {}
+      $("#amRead").disabled = false;
+      if (ai) finish(ai.text, ai.shop, "");
+      else finish(text, "", "AI chưa trả lời kịp nên đọc bằng cách cơ bản – kiểm tra kỹ các dòng.");   // dự phòng: đọc ngay trong app
+    };
+  }
+  if (am.step === 2) {
+    const count = () => $("#amCount").textContent = `${am.rows.filter(r => r.on).length}/${am.rows.length} dòng được chọn`;
+    count();
+    document.querySelectorAll("[data-row]").forEach(c => c.onchange = () => { am.rows[+c.dataset.row].on = c.checked; count(); $("#amNext").disabled = !am.rows.some(r => r.on); });
+    $("#amBack").onclick = () => { am.step = 1; viewAddMenu(); };
+    $("#amNext").disabled = !am.rows.some(r => r.on);
+    $("#amNext").onclick = () => { am.step = 3; viewAddMenu(); };
+  }
+  if (am.step === 3 && !am.done) {
+    $("#amShop").oninput = e => am.shop = e.target.value.trim();
+    $("#amBack2").onclick = () => { am.step = 2; viewAddMenu(); };
+    loadPresets().then(list => {
+      if (!$("#amExist")) return;
+      const mine = list.filter(p => p.type === am.type);
+      $("#amShops").innerHTML = mine.map(p => `<option value="${esc(p.shop)}">`).join("");
+      $("#amExist").textContent = mine.length ? `Quán ${TL} đã có sẵn: ${mine.map(p => p.shop).join(", ")}` : `Chưa có quán ${TL} nào trong menu có sẵn.`;
+    }).catch(() => {});
+    $("#amSave").onclick = async () => {
+      const b = $("#amSave"); b.disabled = true;
+      const picked = am.rows.filter(r => r.on);
+      if (await savePresetFlow(($("#amShop").value || "").trim(), am.type, presetText(picked), status)) { am.shop = $("#amShop").value.trim(); am.done = true; viewAddMenu(); }
+      else b.disabled = false;
+    };
+  }
+  if ($("#amAgain")) $("#amAgain").onclick = () => { state.am = null; viewAddMenu(); };
+  if ($("#amHome")) $("#amHome").onclick = () => { state.am = null; go("home"); };
+}
+
+/* ===== TẠO PHIÊN ===== */
+// "29/10/2026 - Cơm gà Nhà Lá"
+const sessionLabel = s => `${new Date(s.created).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })} - ${esc(s.shop || "(chưa đặt tên quán)")}`;
+/* --- Đọc mã QR nhận tiền --- */
+let jsqrLoading;
+function loadJsQR() {
+  if (window.jsQR) return Promise.resolve();
+  return jsqrLoading ||= new Promise((ok, fail) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
+    sc.onload = ok; sc.onerror = () => { jsqrLoading = null; fail(new Error("Không tải được bộ đọc QR (cần internet)")); };
+    document.head.appendChild(sc);
+  });
+}
+async function decodeQr(file) {
+  await loadJsQR();
+  const bmp = await createImageBitmap(file);
+  for (const max of [1600, 800]) {
+    const k = Math.min(1, max / Math.max(bmp.width, bmp.height)), w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    const cx = cv.getContext("2d", { willReadFrequently: true }); cx.drawImage(bmp, 0, 0, w, h);
+    const r = jsQR(cx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: "attemptBoth" });
+    if (r) return r.data;
+  }
+  throw new Error("Không tìm thấy mã QR trong ảnh");
+}
+// Chuỗi VietQR (EMVCo) dạng TLV: 2 ký tự tag + 2 ký tự độ dài + giá trị
+function parseTlv(str) {
+  const o = {}; let i = 0;
+  while (i + 4 <= str.length) {
+    const len = Number(str.slice(i + 2, i + 4));
+    if (!(len >= 0) || i + 4 + len > str.length) break;
+    o[str.slice(i, i + 2)] = str.slice(i + 4, i + 4 + len); i += 4 + len;
+  }
+  return o;
+}
+function parseQrPayment(text) {
+  const t = String(text).trim();
+  const momo = t.match(/^2\|99\|(\d{9,11})/) || t.match(/nhantien\.momo\.vn\/(\d{9,11})/);
+  if (momo) return { bank: "MOMO", account: normPhone(momo[1]) || momo[1] };
+  const mai = parseTlv(t)["38"], acc = mai && parseTlv(mai)["01"] && parseTlv(parseTlv(mai)["01"]);
+  if (acc && acc["00"] && acc["01"]) return { bank: (BANKS.find(x => x[2] === acc["00"]) || [""])[0], account: acc["01"] };
+  throw new Error("Không phải mã VietQR / MoMo – hãy nhập tay");
+}
+/* --- Tự sinh mã VietQR chuyển khoản (không phụ thuộc img.vietqr.io) --- */
+const tlv = (tag, val) => tag + String(val.length).padStart(2, "0") + val;
+function crc16(s) {
+  let c = 0xFFFF;
+  for (let i = 0; i < s.length; i++) { c ^= s.charCodeAt(i) << 8; for (let k = 0; k < 8; k++) c = c & 0x8000 ? ((c << 1) ^ 0x1021) & 0xFFFF : (c << 1) & 0xFFFF; }
+  return c.toString(16).toUpperCase().padStart(4, "0");
+}
+// Chuỗi VietQR động (có số tiền) chuyển nhanh 24/7 tới số tài khoản; "" nếu không có BIN ngân hàng
+function buildVietQr(bank, account, amount, info) {
+  const bin = (BANKS.find(x => x[0] === bank) || [])[2];
+  if (!bin) return "";
+  const note = unaccent(info).replace(/[^A-Za-z0-9 ]/g, "").trim().slice(0, 25);
+  const body = tlv("00", "01") + tlv("01", "12")
+    + tlv("38", tlv("00", "A000000727") + tlv("01", tlv("00", bin) + tlv("01", account)) + tlv("02", "QRIBFTTA"))
+    + tlv("53", "704") + (amount > 0 ? tlv("54", String(Math.round(amount))) : "") + tlv("58", "VN")
+    + (note ? tlv("62", tlv("08", note)) : "") + "6304";
+  return body + crc16(body);
+}
+let qrgenLoading;
+function loadQrGen() {
+  if (window.qrcode) return Promise.resolve();
+  return qrgenLoading ||= new Promise((ok, fail) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";
+    sc.onload = ok; sc.onerror = () => { qrgenLoading = null; fail(new Error("Không tải được bộ tạo QR")); };
+    document.head.appendChild(sc);
+  });
+}
+// Thay ảnh QR dự phòng (img.vietqr.io) bằng mã tự sinh; lỗi thì giữ ảnh dự phòng
+async function paintQrs() {
+  const imgs = [...document.querySelectorAll("img.qr[data-vq]")];
+  if (!imgs.length) return;
+  try { await loadQrGen(); } catch { return; }
+  imgs.forEach(img => {
+    try {
+      const q = qrcode(0, "M"); q.addData(img.dataset.vq); q.make();
+      img.src = q.createDataURL(8, 16);
+      delete img.dataset.vq;
+    } catch {}
+  });
+}
+
+// 3 bước: ① Menu (nếu có gì để chọn) → ② Đặt đơn → ③ Nhận tiền + Tạo phiên. Dữ liệu các bước giữ trong `cr` (DOM vẽ lại mỗi bước)
+async function viewCreate() {
+  const kind = state.newKind === "nuoc" ? "nuoc" : "com", KL = TYPE_INFO[kind].label;
+  $("#title").textContent = `Tạo phiên đặt ${KL}`;
+  let prev = [], presets = [];
+  await Promise.all([
+    api("listSessions", { history: true }).then(r => prev = r).catch(() => {}),
+    loadPresets().then(r => presets = r.filter(p => p.type === kind)).catch(() => {})
+  ]);
+  const oldSessions = prev.filter(s => !s.kind || s.kind === kind);   // chỉ phiên cùng loại (cơm / nước)
+  const last = mem.get("bank", null) || prev.filter(s => s.owner_phone === state.user.phone && s.bank && s.account)
+    .map(s => ({ bank: s.bank, account: s.account, acc_name: s.acc_name }))[0] || {};
+  const steps = [...(presets.length || oldSessions.length ? [["menu", "Menu"]] : []), ["order", "Đặt đơn"], ["pay", "Nhận tiền"]];
+  const cr = {
+    step: 0, max: 0, copy: "", place: DEFAULT_PLACE, deadline: mem.get("deadline", ""), subsidy: mem.get("subsidy_" + kind, ""),
+    bank: last.bank ? bankLabel(last.bank) : "", account: last.account || "", accName: last.acc_name || "", prepay: mem.get("prepay", false),
+    qrOk: !!(last.bank && last.account)   // đã có thông tin từ mã QR lần trước
+  };
+  const R = '<span class="req">*</span>';
+  // Đọc các ô của bước đang hiện vào cr (trước khi vẽ lại)
+  const sync = () => {
+    const v = id => $("#" + id)?.value;
+    if ($("#copy")) cr.copy = v("copy");
+    if ($("#place")) { cr.place = v("place"); cr.deadline = v("deadline"); cr.subsidy = v("subsidy"); }
+    if ($("#bank")) { cr.bank = v("bank"); cr.account = v("account"); cr.accName = v("accName"); cr.prepay = $("#prepay").checked; }
+  };
+  const check = key => {
+    if (key === "order" && cr.deadline.trim() && !normTime(cr.deadline)) return "Giờ chốt theo 24 giờ, từ 00:00 đến 23:59 (VD 10:30)";
+    if (key === "pay") {
+      const bank = bankFromInput(cr.bank), account = cr.account.replace(/[\s.\-]/g, "");
+      if (!bank) return "Chọn ngân hàng trong danh sách gợi ý";
+      if (!/^\d{6,19}$/.test(account)) return "Số tài khoản chỉ gồm 6–19 chữ số";
+      if (bank === "MOMO" && !normPhone(account)) return "Ví MoMo: nhập số điện thoại 10 số";
+      if (!cr.accName.trim()) return "Nhập tên chủ tài khoản";
+    }
+    return "";
+  };
+  const submit = async () => {
+    const err = m => $("#err").textContent = m;
+    const bank = bankFromInput(cr.bank), account = cr.account.replace(/[\s.\-]/g, ""), acc_name = cr.accName.trim();
+    $("#ok").disabled = true;
+    try {
+      const preset = cr.copy.startsWith("p:") ? presets.find(p => p.id === cr.copy.slice(2)) : null;
+      const r = await api("createSession", {
+        place: cr.place.trim() || DEFAULT_PLACE, bank, account, acc_name, copyFrom: cr.copy.startsWith("s:") ? cr.copy.slice(2) : "", prepay: cr.prepay,
+        deadline: timeToIso(cr.deadline), subsidy: Math.round(Number(cr.subsidy) * 1000) || 0, kind
+      });
+      if (preset) {   // menu có sẵn: nạp vào phiên vừa tạo (cùng cách lưu menu ở tab Thêm menu)
+        try {
+          const note = { com: [], nuoc: [], shops: { com: "", nuoc: "" } }; note.shops[kind] = preset.shop.slice(0, 60);
+          await api("saveMenu", { id: r.id, items: parseMenu(preset.text, kind), note: JSON.stringify(note), shop: preset.shop.slice(0, 60) });
+        } catch { toast("Đã tạo phiên nhưng chưa nạp được menu – vào tab Thêm menu để chọn lại"); }
+      }
+      mem.set("bank", { bank, account, acc_name });
+      mem.set("deadline", normTime(cr.deadline));
+      mem.set("subsidy_" + kind, cr.subsidy);
+      mem.set("prepay", cr.prepay);
+      state.panel = "menu"; state.mtab = kind; go("session", r.id);
+    } catch (e) { err(e.message); $("#ok").disabled = false; }
+  };
+  const draw = () => {
+    const key = steps[cr.step][0], lastStep = cr.step === steps.length - 1;
+    const stepBar = `<div class="tabs sm">${steps.map(([, l], i) => `<button data-step="${i}" class="${cr.step === i ? "on" : ""}" ${i > cr.max ? "disabled" : ""}>${i + 1}. ${l}</button>`).join("")}</div>`;
+    const body = {
+      menu: () => `<label>Menu cho phiên này</label><select id="copy"><option value="">Không – tạo menu mới</option>
+        ${presets.length ? `<optgroup label="Menu có sẵn">${presets.map(p => `<option value="p:${esc(p.id)}" ${cr.copy === "p:" + p.id ? "selected" : ""}>${esc(p.shop)}</option>`).join("")}</optgroup>` : ""}
+        ${oldSessions.length ? `<optgroup label="Phiên cũ (Ngày - Tên quán)">${oldSessions.map(s => `<option value="s:${esc(s.id)}" ${cr.copy === "s:" + s.id ? "selected" : ""}>${sessionLabel(s)}</option>`).join("")}</optgroup>` : ""}</select>
+        <div class="mute" style="margin-top:6px">Chọn quán có sẵn hoặc chép menu từ phiên cũ; hoặc để trống rồi thêm món ở tab Thêm menu sau khi tạo phiên.</div>`,
+      order: () => `<label>Địa điểm lấy ${KL} ${R}</label>
+        <input id="place" value="${esc(cr.place)}">
+        <label>Giờ chốt đơn</label>
+        <input type="text" id="deadline" data-time inputmode="numeric" maxlength="5" placeholder="HH:MM (00:00 – 23:59), VD: 10:30" value="${esc(cr.deadline)}">
+        <div class="mute">Hiện đếm ngược cho mọi người. Tới giờ bạn vẫn tự bấm "Chốt đơn".</div>
+        <label>Deeyu hỗ trợ mỗi ${unitWord({ kind })} (nghìn đồng)</label>
+        <input type="number" id="subsidy" inputmode="numeric" min="0" placeholder="VD: 20 – để trống nếu không hỗ trợ" value="${esc(cr.subsidy)}">
+        <div class="mute">Trừ thẳng vào tiền mỗi người phải trả. ${kind === "nuoc" ? "Tính theo từng ly nước." : "Không tính nước và cơm thêm."}</div>`,
+      pay: () => `<label>Nhập nhanh bằng ảnh mã QR nhận tiền (VietQR hoặc MoMo) – không bắt buộc</label>
+        <input type="file" id="qrImg" accept="image/*">
+        <div class="mute" id="qrStatus" style="margin:4px 0 8px">${cr.qrOk ? "Đang dùng thông tin lần trước. Sửa trực tiếp bên dưới hoặc chọn ảnh QR khác." : "Chọn ảnh QR để app tự điền ngân hàng + số tài khoản, hoặc tự nhập bên dưới."}</div>
+        <label>Ngân hàng / MoMo ${R}</label>
+        <input id="bank" list="bankList" autocomplete="off" placeholder="Chọn / gõ tên ngân hàng, hoặc nhập nhanh bằng ảnh QR" value="${esc(cr.bank)}">
+        <datalist id="bankList">${BANKS.map(b => `<option value="${esc(b[0] + " - " + b[1])}">`).join("")}</datalist>
+        <label>Số tài khoản ${R}</label>
+        <input id="account" inputmode="numeric" placeholder="VD: 0123456789 (MoMo: số điện thoại)" value="${esc(cr.account)}">
+        <label>Tên chủ tài khoản ${R}</label>
+        <input id="accName" placeholder="VD: NGUYEN VAN A" value="${esc(cr.accName)}">
+        <label style="display:flex;align-items:center;gap:8px;color:var(--ink);margin-top:14px"><input type="checkbox" id="prepay" style="width:auto" ${cr.prepay ? "checked" : ""}> Yêu cầu chuyển khoản trước để đặt</label>
+        <div class="mute">Bật: đơn của người đặt chỉ được tính vào tin nhắn tổng hợp sau khi bạn đánh dấu "Đã trả".</div>`
+    }[key]();
+    $("#app").innerHTML = stepBar + `<div class="card"><h2>${cr.step + 1}. ${steps[cr.step][1]}</h2>${body}<div class="err" id="err"></div>
+      <div class="row" style="margin-top:8px">${cr.step ? `<button class="ghost" id="back">← Quay lại</button>` : ""}<button class="primary grow" id="${lastStep ? "ok" : "next"}" style="margin:0">${lastStep ? "Tạo phiên" : "Tiếp →"}</button></div></div>`;
+    document.querySelectorAll("[data-step]").forEach(b => b.onclick = () => { sync(); cr.step = +b.dataset.step; draw(); });
+    if ($("#back")) $("#back").onclick = () => { sync(); cr.step--; draw(); };
+    if ($("#next")) $("#next").onclick = () => {
+      sync();
+      const m = check(key); if (m) return $("#err").textContent = m;
+      cr.step++; cr.max = Math.max(cr.max, cr.step); draw();
+    };
+    if ($("#ok")) $("#ok").onclick = () => {
+      sync();
+      const m = steps.map(([k]) => check(k)).find(Boolean); if (m) return $("#err").textContent = m;
+      submit();
+    };
+    if ($("#qrImg")) $("#qrImg").onchange = async e => {
+      const f = e.target.files[0], st = m => $("#qrStatus").textContent = m;
+      if (!f) return;
+      try {
+        st("Đang đọc mã QR…");
+        const r = parseQrPayment(await decodeQr(f));
+        $("#bank").value = r.bank ? bankLabel(r.bank) : "";
+        $("#account").value = r.account;
+        st(`Đã đọc QR: ${r.bank ? bankLabel(r.bank) : "(ngân hàng chưa nhận ra – hãy chọn ở ô Ngân hàng)"} · ${r.account}. Nhập tên chủ tài khoản rồi tạo phiên.`);
+      } catch (err) { st("Lỗi: " + err.message); }
+      e.target.value = "";
+    };
+  };
+  draw();
+}
+
+/* ===== PHIÊN ===== */
+async function viewSession(keepCart = false) {
+  $("#app").innerHTML = state.data ? $("#app").innerHTML : `<div class="mute">Đang tải…</div>`;
+  try {
+    const d = await api("getSession", { id: state.sid });
+    if (!keepCart) {
+      state.cart = d.orders.filter(o => o.phone === state.user.phone)
+        .map(o => ({ name: o.item, size: o.size || "", toppings: o.toppings ? o.toppings.split("|") : [], qty: o.qty, note: o.note }));
+    }
+    state.data = d;
+    drawSession();
+    clearInterval(state.timer);
+    state.timer = setInterval(() => {
+      if (state.view === "session" && !state.busy && !state.dirty && !state.cartDirty && !document.activeElement?.matches("input,textarea")) refreshSession();
+    }, 15000);
+  } catch (e) { $("#app").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+// Gửi kèm phiên bản dữ liệu đang có: không ai đổi gì thì server trả { same: true }, không phải vẽ lại
+async function refreshSession() {
+  try {
+    const d = await api("getSession", { id: state.sid, v: state.data?.v });
+    if (d.same) return;
+    state.data = d; drawSession();
+  } catch {}
+}
+
+const isOwner = () => state.data.session.owner_phone === state.user.phone;
+const isOpen = () => state.data.session.status === "open";
+
+function drawSession() {
+  const { session: s } = state.data;
+  state.dirty = false;
+  $("#title").textContent = s.shop || `Phiên của ${s.owner_name}`;
+  const owner = isOwner();
+  $("#app").innerHTML = `
+    <div class="card row">
+      <div class="grow">${esc(s.place)}<br><span class="mute">Người đặt: ${esc(s.owner_name)} · ${esc(s.owner_phone)}</span><br><span class="mute" id="hdl">${dlSpan(s)}</span>${s.subsidy ? `<br><span class="mute">🎁 Deeyu hỗ trợ ${money(s.subsidy)} mỗi ${unitWord(s)}</span>` : ""}</div>
+      <span class="tag ${isOpen() ? "" : "locked"}">${isOpen() ? "Đang mở" : "Đã chốt"}</span>
+    </div>
+    <div class="tabs five" id="mainTabs"></div>
+    <div id="panel"></div>`;
+  // Các bước của phiên: Đặt · Thêm menu · Cài đặt đơn · Chốt đơn · Xóa phiên (4 tab sau chỉ người tạo phiên thấy)
+  const old = { com: "order", nuoc: "order", orders: "close", manage: "menu" };
+  if (old[state.panel]) { if (old[state.panel] === "order") state.tab = state.panel; state.panel = old[state.panel]; }
+  if (!owner || !["order", "menu", "settings", "close", "delete"].includes(state.panel)) state.panel = "order";
+  if (s.kind) state.tab = s.kind; else if (state.tab !== "com" && state.tab !== "nuoc") state.tab = "com";
+  paintTabs();
+  if (state.panel === "order") drawOrder(); else drawManage();
+}
+function paintTabs() {
+  const box = $("#mainTabs"); if (!box) return;
+  const s = state.data.session, n = state.cart.reduce((q, l) => q + l.qty, 0);
+  const tab = (p, icon, text) => `<button data-p="${p}" class="${state.panel === p ? "on" : ""}"><span>${icon}</span><br>${text}</button>`;
+  const order = s.kind === "nuoc" ? ["🥤", "Đặt nước"] : s.kind === "com" ? ["🍚", "Đặt cơm"] : ["🛒", "Đặt món"];
+  // Người chọn món chỉ có một bước -> tiêu đề, không phải nút (nút Đặt nằm ở thanh dưới)
+  box.className = isOwner() ? "tabs five" : "pagehead";
+  if (!isOwner()) { box.innerHTML = `${order[0]} ${order[1]}`; return; }
+  box.innerHTML = tab("order", order[0], order[1] + (n ? ` (${n})` : ""))
+    + (isOwner() ? tab("menu", "➕", "Thêm menu") + tab("settings", "⚙️", "Cài đặt đơn") + tab("close", "📋", "Chốt đơn") + tab("delete", "🗑", "Xóa phiên") : "");
+  box.querySelectorAll("[data-p]").forEach(b => b.onclick = () => {
+    if (b.dataset.p === "menu" && !s.kind) state.mtab = state.tab;
+    state.panel = b.dataset.p; state.q = ""; drawSession();
+  });
+}
+
+/* --- Đặt món --- */
+// Giỏ = danh sách dòng { name, size, toppings: [...], qty, note }; mỗi tổ hợp (món, size, topping) là một dòng
+const lineKey = l => JSON.stringify([l.name, l.size || "", l.toppings]);
+const findVariant = (name, size) => state.data.menu.find(m => !isTopping(m) && m.name === name && (m.size || "") === (size || ""));
+const lineUnit = l => { const v = findVariant(l.name, l.size); return v ? v.price + l.toppings.reduce((t, n) => t + (state.data.menu.find(m => isTopping(m) && m.name === n)?.price || 0), 0) : 0; };
+function cartTotal() { return state.cart.reduce((t, l) => t + lineUnit(l) * l.qty, 0); }
+// Deeyu hỗ trợ: phiên cơm = mỗi suất cơm (không tính nước, cơm thêm); phiên nước = mỗi ly nước. Được trừ s.subsidy, không quá tiền món
+const isPortion = (s, type, item) => s.kind === "nuoc" ? type === "nuoc" : type === "com" && !EXTRA_RICE_RE.test(item);
+const unitWord = s => s.kind === "nuoc" ? "ly nước" : "suất cơm";
+const recvWord = s => s.kind === "nuoc" ? "nước" : s.kind === "com" ? "cơm" : "cơm / nước";
+// Phiên cũ (kind trống) có cả cơm và nước; phiên mới chỉ một loại
+const kindTypes = s => s.kind ? [s.kind] : ["com", "nuoc"];
+const subsidyOf = (s, amount, portions) => Math.min(amount, (s.subsidy || 0) * portions);
+const cartSubsidy = () => subsidyOf(state.data.session, cartTotal(),
+  state.cart.reduce((n, l) => n + (isPortion(state.data.session, findVariant(l.name, l.size)?.type, l.name) ? l.qty : 0), 0));
+// Ghi chú theo loại { com: [...], nuoc: [...] } lưu dạng JSON trong session.note
+function parseNotes(raw) {
+  let o; try { o = JSON.parse(raw); } catch {}
+  return { com: Array.isArray(o?.com) ? o.com : [], nuoc: Array.isArray(o?.nuoc) ? o.nuoc : [],
+           shops: { com: String(o?.shops?.com || ""), nuoc: String(o?.shops?.nuoc || "") } };
+}
+const shopName = type => parseNotes(state.data.session.note).shops[type];
+const shopHead = type => shopName(type) ? `<div class="shopname">🏪 ${esc(shopName(type))}</div>` : "";
+const notesCard = type => {
+  const l = parseNotes(state.data.session.note)[type];
+  return l.length ? `<div class="card"><h2>ℹ️ Lưu ý món ${TYPE_INFO[type].label}</h2><div class="mute">${l.map(esc).join("<br>")}</div></div>` : "";
+};
+function drawOrder() {
+  const { menu } = state.data, type = state.tab, open = isOpen();
+  const items = drinkOptions(type), tops = toppingsOf(type);
+  const lineHtml = l => `
+    <div class="line" data-k="${esc(lineKey(l))}"><div class="row"><div class="grow mute">${esc([l.size, ...l.toppings.map(t => "+ " + t)].filter(Boolean).join(" · ") || "Mặc định")} · ${money(lineUnit(l))}</div>
+      <div class="qty"><button data-ld="-1" ${open ? "" : "disabled"}>−</button><span>${l.qty}</span><button data-ld="1" ${open ? "" : "disabled"}>+</button></div></div>
+      <input class="note" placeholder="Ghi chú riêng của bạn (ít đá, ít ngọt, ít cơm…)" maxlength="200" value="${esc(l.note)}" ${open ? "" : "disabled"}></div>`;
+  // Combo "2 món 27K": ô tick là các món chọn kèm (giá 0) và phải chọn đúng số món ghi trong tên
+  const pickOf = it => { const m = tops.length && tops.every(t => !t.price) && COMBO_RE.exec(it.name); return m ? parseInt(m[0]) : 0; };
+  const topsLabel = (pick, n) => pick ? `Chọn món (${n}/${pick})` : n ? `Topping (${n})` : "Chọn topping";
+  const itemHtml = it => {
+    const sel = state.sel[it.name] ||= { size: it.variants[0].size, tops: [] }, pick = pickOf(it);
+    if (!it.variants.some(v => v.size === sel.size)) sel.size = it.variants[0].size;
+    sel.tops = sel.tops.filter(n => tops.some(t => t.name === n));
+    const multi = it.variants.length > 1;
+    // Nhiều size: mỗi size một nút bấm (thay cho ô chọn), giá ghi ngay trên nút
+    return `
+      <div class="item" data-n="${esc(it.name)}" data-f="${esc(fold(it.name))}" data-pick="${pick}">
+        <div class="row"><div class="grow"><b>${esc(it.name)}</b>${multi ? "" : `<br><span class="mute">${money(it.variants[0].price)}</span>`}</div>
+          <button class="ghost" data-add ${open ? "" : "disabled"}>＋ Thêm</button></div>
+        ${multi ? `<div class="chips">${it.variants.map(v => `<button class="chip ${v.size === sel.size ? "on" : ""}" data-size="${esc(v.size)}">${v.size ? esc(v.size) : "Mặc định"} · ${money(v.price)}</button>`).join("")}</div>` : ""}
+        ${tops.length ? `<details class="dd" style="margin-top:8px" data-dd="${esc(it.name)}" ${state.ddOpen.has(it.name) ? "open" : ""}><summary>${topsLabel(pick, sel.tops.length)}</summary><div class="ddbox">${tops.map(t => `<label class="chk"><input type="checkbox" data-top="${esc(t.name)}" ${sel.tops.includes(t.name) ? "checked" : ""} ${pick && sel.tops.length >= pick && !sel.tops.includes(t.name) ? "disabled" : ""}> ${esc(t.name)} ${t.price ? `<span class="mute">+${money(t.price)}</span>` : ""}</label>`).join("")}</div></details>` : ""}
+        ${state.cart.filter(l => l.name === it.name).map(lineHtml).join("")}
+      </div>`;
+  };
+  const groups = groupByCat(items), cats = groups.map((g, i) => g.cat ? `<button class="chip" data-jump="${i}">${esc(g.cat)}</button>` : "").join("");
+  // Menu dài: ô tìm món + nút nhảy tới từng mục, dính ở đầu màn hình khi cuộn
+  const finder = items.length > 8 ? `<div class="finder">
+      <input id="q" type="search" placeholder="🔍 Tìm món (gõ không dấu cũng được)" value="${esc(state.q)}">
+      ${groups.filter(g => g.cat).length > 1 ? `<div class="chips">${cats}</div>` : ""}</div>` : "";
+  $("#panel").innerHTML = `
+    ${state.data.session.kind ? "" : `<div class="tabs sm"><button data-t="com" class="${type === "com" ? "on" : ""}">🍚 Cơm</button><button data-t="nuoc" class="${type === "nuoc" ? "on" : ""}">🥤 Nước</button></div>`}
+    ${shopHead(type)}
+    ${notesCard(type)}
+    ${finder}
+    <div class="card" id="menuCard">${!menu.length ? `<span class="mute">Người đặt chưa nhập menu.</span>` :
+      items.length ? groups.map((g, i) => (g.cat ? `<div class="cat" data-ci="${i}">${esc(g.cat)}</div>` : "") + g.items.map(itemHtml).join("")).join("") + `<div class="mute hidden" id="noHit">Không có món nào khớp.</div>` : `<span class="mute">Không có món trong mục này.</span>`}</div>
+    <div class="card" id="peopleCard"></div>`;
+  paintPeople();
+  applyFilter();
+  const selOf = el => state.sel[el.closest(".item").dataset.n];
+  document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { state.tab = b.dataset.t; state.q = ""; drawOrder(); });
+  if ($("#q")) $("#q").oninput = e => { state.q = e.target.value; applyFilter(); };
+  document.querySelectorAll("[data-jump]").forEach(b => b.onclick = () => {
+    if (state.q) { state.q = $("#q").value = ""; applyFilter(); }
+    $(`.cat[data-ci="${b.dataset.jump}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  document.querySelectorAll(".chip[data-size]").forEach(b => b.onclick = () => {
+    selOf(b).size = b.dataset.size;
+    b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b));
+  });
+  document.querySelectorAll("input[data-top]").forEach(e => e.onchange = () => {
+    const box = e.closest(".item"), sel = selOf(e);
+    sel.tops = [...box.querySelectorAll("input[data-top]:checked")].map(x => x.dataset.top);
+    const pick = +box.dataset.pick;
+    box.querySelector("summary").textContent = topsLabel(pick, sel.tops.length);
+    if (pick) box.querySelectorAll("input[data-top]").forEach(x => x.disabled = sel.tops.length >= pick && !x.checked);
+  });
+  document.querySelectorAll("details[data-dd]").forEach(d => d.ontoggle = () => d.open ? state.ddOpen.add(d.dataset.dd) : state.ddOpen.delete(d.dataset.dd));
+  document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
+    const n = b.closest(".item").dataset.n, sel = state.sel[n], pick = +b.closest(".item").dataset.pick;
+    if (pick && sel.tops.length !== pick) { state.ddOpen.add(n); drawOrder(); return toast(`Chọn đủ ${pick} món trong combo`); }
+    const l = { name: n, size: sel.size, toppings: tops.map(t => t.name).filter(x => sel.tops.includes(x)), qty: 1, note: "" };
+    const ex = state.cart.find(x => lineKey(x) === lineKey(l));
+    if (ex) ex.qty = Math.min(50, ex.qty + 1); else state.cart.push(l);
+    if (pick) sel.tops = [];   // combo kế tiếp chọn món lại từ đầu
+    drawOrder();
+    markCart();
+  });
+  document.querySelectorAll(".line input.note").forEach(i => i.oninput = () => { state.cart.find(x => lineKey(x) === i.closest(".line").dataset.k).note = i.value; markCart(); });
+  paintBar();
+}
+// Lọc món theo ô tìm: ẩn món không khớp, ẩn tiêu đề mục không còn món nào
+function applyFilter() {
+  if (!$("#menuCard")) return;
+  const q = fold(state.q.trim());
+  document.querySelectorAll("#menuCard .item").forEach(el => el.classList.toggle("hidden", !!q && !el.dataset.f.includes(q)));
+  document.querySelectorAll("#menuCard .cat").forEach(c => {
+    let n = c.nextElementSibling, any = false;
+    for (; n && n.classList.contains("item"); n = n.nextElementSibling) if (!n.classList.contains("hidden")) any = true;
+    c.classList.toggle("hidden", !any);
+  });
+  $("#noHit")?.classList.toggle("hidden", !q || !!$("#menuCard .item:not(.hidden)"));
+}
+// −/+ một dòng trong giỏ: dùng chung cho danh sách món và giỏ ở thanh dưới
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-ld]");
+  if (!b || b.disabled || state.view !== "session") return;
+  const l = state.cart.find(x => lineKey(x) === b.closest("[data-k]").dataset.k);
+  if (!l) return;
+  l.qty = Math.max(0, Math.min(50, l.qty + Number(b.dataset.ld)));
+  if (!l.qty) state.cart.splice(state.cart.indexOf(l), 1);
+  drawOrder();
+  markCart();
+});
+
+// Khối "Mọi người đã đặt": công khai cho mọi người, xem theo người hoặc theo món. Bạn luôn ở đầu; giỏ chưa bấm Đặt hiện là "chưa đặt"
+const lineLabel = l => orderLabel({ item: l.name, size: l.size, toppings: l.toppings.join("|") });
+function paintPeople() {
+  const box = $("#peopleCard"); if (!box) return;
+  const s = state.data.session, me = state.user.phone, view = state.peopleView ||= "person", by = new Map();
+  state.data.orders.forEach(o => {
+    if (!by.has(o.phone)) by.set(o.phone, { phone: o.phone, name: o.name, paid: o.paid, claimed: o.claimed, rows: [] });
+    by.get(o.phone).rows.push({ label: orderLabel(o), qty: o.qty, note: o.note });
+  });
+  if (state.cartDirty) {   // đơn đang sửa của tôi thay cho đơn đã lưu
+    by.delete(me);
+    if (state.cart.length) by.set(me, { phone: me, name: state.user.name, pending: true, rows: state.cart.map(l => ({ label: lineLabel(l), qty: l.qty, note: l.note })) });
+  }
+  const people = [...by.values()].sort((a, b) => (b.phone === me) - (a.phone === me) || a.name.localeCompare(b.name, "vi"));
+  const nameOf = p => p.phone === me ? "Bạn" : p.name, portions = people.reduce((n, p) => n + p.rows.reduce((q, r) => q + r.qty, 0), 0);
+  const tag = p => p.pending ? `<span class="tag locked">Chưa đặt</span>` : p.paid ? `<span class="tag ok">Đã trả</span>` : p.claimed ? `<span class="tag">Báo đã chuyển</span>` : s.prepay ? `<span class="tag locked">Chờ chuyển khoản</span>` : "";
+  let body;
+  if (!people.length) body = `<span class="mute">Chưa có ai đặt.</span>`;
+  else if (view === "person") body = people.map(p => `<div class="item"><div class="row"><div class="grow"><b>${esc(nameOf(p))}</b></div>${tag(p)}</div>
+      <div class="mute">${p.rows.map(r => `${r.qty}× ${esc(r.label)}${r.note ? " (" + esc(r.note) + ")" : ""}`).join(", ")}</div></div>`).join("");
+  else {
+    const agg = new Map();
+    people.forEach(p => p.rows.forEach(r => {
+      const a = agg.get(r.label) || agg.set(r.label, { qty: 0, who: [] }).get(r.label);
+      a.qty += r.qty; a.who.push(`${nameOf(p)}${r.qty > 1 ? " ×" + r.qty : ""}${r.note ? " (" + r.note + ")" : ""}`);
+    }));
+    body = [...agg].map(([label, a]) => `<div class="item"><div class="row"><div class="grow"><b>${esc(label)}</b></div><b>×${a.qty}</b></div><div class="mute">${a.who.map(esc).join(", ")}</div></div>`).join("");
+  }
+  box.innerHTML = `<h2>Mọi người đã đặt (${people.length} người · ${portions} phần)</h2>
+    <div class="tabs sm"><button data-pv="person" class="${view === "person" ? "on" : ""}">Theo người</button><button data-pv="item" class="${view === "item" ? "on" : ""}">Theo món</button></div>${body}`;
+  box.querySelectorAll("[data-pv]").forEach(b => b.onclick = () => { state.peopleView = b.dataset.pv; paintPeople(); });
+}
+function paintBar() {
+  const s = state.data.session, sub = cartSubsidy(), total = cartTotal() - sub, count = state.cart.reduce((t, l) => t + l.qty, 0);
+  const mine = state.data.orders.filter(o => o.phone === state.user.phone);
+  const paid = mine.length > 0 && mine.every(o => o.paid), claimed = mine.length > 0 && mine.every(o => o.claimed);
+  const canPay = total > 0 && s.bank && s.account, open = isOpen();
+  const word = s.kind === "nuoc" ? "Đặt nước" : s.kind === "com" ? "Đặt cơm" : "Đặt món";
+  const hint = saver.msg || (state.cartDirty && (count || mine.length) ? `Chưa đặt – bấm "${count ? word : "Cập nhật đơn"}" để lưu đơn` : !count ? "" : paid ? "✓ Người đặt đã xác nhận chuyển khoản" : claimed ? "Đã báo chuyển – chờ người đặt xác nhận"
+    : s.prepay ? "⚠ Cần chuyển khoản trước – đơn chưa được tính cho tới khi người đặt xác nhận" : "");
+  const placeBtn = !open ? "" : saver.running ? `<button class="ghost" disabled style="width:100%">Đang đặt…</button>`
+    : state.cartDirty && (count || mine.length) ? `<button class="primary" id="placeBtn" style="margin:0">${count ? word : "Cập nhật đơn"}</button>`
+    : mine.length ? `<button class="ghost paid" disabled style="width:100%">✓ Đã đặt</button>` : "";
+  if (!count) state.cartOpen = false;
+  paintTabs();
+  // Bấm vào tổng tiền để mở / đóng giỏ: xem lại mọi món đã chọn, sửa số lượng ngay tại đây
+  const cart = state.cartOpen ? `<div class="cartbox">${state.cart.map(l => `
+    <div class="row" data-k="${esc(lineKey(l))}" style="padding:4px 0"><div class="grow">${esc(l.name)}<br><span class="mute">${esc([l.size, ...l.toppings.map(t => "+ " + t)].filter(Boolean).join(" · "))} ${money(lineUnit(l))}${l.note ? " · " + esc(l.note) : ""}</span></div>
+      <div class="qty"><button data-ld="-1" ${open ? "" : "disabled"}>−</button><span>${l.qty}</span><button data-ld="1" ${open ? "" : "disabled"}>+</button></div></div>`).join("")}</div>` : "";
+  setBar(`${cart}<div class="row"><button class="cartsum grow" id="cartBtn" ${count ? "" : "disabled"}>🛒 ${count} món · <b>${money(total)}</b>${sub ? ` <span class="mute">(đã trừ ${money(sub)} hỗ trợ)</span>` : ""}${count ? (state.cartOpen ? " ▾" : " ▴ xem giỏ") : ""}<br><span class="mute">${esc(open ? hint : "Phiên đã chốt – không đặt thêm được.")}</span></button>${canPay ? `<button class="ghost" id="payBtn">💳 Chuyển khoản</button>` : ""}</div>${placeBtn ? `<div class="row" style="margin-top:8px">${placeBtn}</div>` : ""}`);
+  $("#cartBtn").onclick = () => { state.cartOpen = !state.cartOpen; paintBar(); };
+  if ($("#placeBtn")) $("#placeBtn").onclick = placeNow;
+  if ($("#payBtn")) $("#payBtn").onclick = showPay;
+}
+
+function ordersByPerson(orders, manage) {
+  if (!orders.length) return `<span class="mute">Chưa có ai đặt.</span>`;
+  const by = {}, s = state.data.session, tot = { amount: 0, sub: 0 };
+  orders.forEach(o => (by[o.phone] ||= { name: o.name, paid: o.paid, claimed: o.claimed, rows: [] }).rows.push(o));
+  const list = Object.entries(by).map(([ph, p]) => {
+    const amount = p.rows.reduce((t, o) => t + o.price * o.qty, 0);
+    const sub = subsidyOf(s, amount, p.rows.reduce((n, o) => n + (isPortion(s, o.type, o.item) ? o.qty : 0), 0));
+    tot.amount += amount; tot.sub += sub;
+    const claim = p.claimed && !p.paid ? `<span class="tag">Báo đã chuyển</span>` : "";
+    return `<div class="item"><div class="row"><div class="grow"><b>${esc(p.name)}</b> <span class="mute">${esc(ph)}</span></div>
+      <b title="${sub ? `Tiền món ${money(amount)} − hỗ trợ ${money(sub)}` : ""}">${money(amount - sub)}</b>
+      ${manage ? `${claim}<button class="ghost ${p.paid ? "paid" : ""}" data-paid="${esc(ph)}" data-v="${p.paid ? 0 : 1}">${p.paid ? "✓ Đã trả" : "Chưa trả"}</button>` : p.paid ? `<span class="tag ok">Đã trả</span>` : claim || (state.data.session.prepay ? `<span class="tag locked">Chờ chuyển khoản</span>` : "")}</div>
+      <div class="mute">${p.rows.map(o => `${o.qty}× ${esc(orderLabel(o))}${o.note ? " (" + esc(o.note) + ")" : ""}`).join(", ")}${sub ? ` · hỗ trợ −${money(sub)}` : ""}</div></div>`;
+  }).join("");
+  // Người tạo phiên: tổng tiền trả quán / Deeyu hỗ trợ / cần thu từ mọi người
+  return list + (manage && tot.sub ? `<div class="mute" style="margin-top:8px">Tiền món <b>${money(tot.amount)}</b> · Deeyu hỗ trợ <b>${money(tot.sub)}</b> · Cần thu <b>${money(tot.amount - tot.sub)}</b></div>` : "");
+}
+
+// Đơn chỉ được lưu khi bấm nút "Đặt cơm / Đặt nước": sửa giỏ chỉ đánh dấu "chưa đặt"
+const saver = { running: false, msg: "" };
+function markCart() {
+  state.cartDirty = true; saver.msg = "";
+  paintPeople();
+  paintBar();
+}
+async function placeNow() {
+  if (saver.running) return;
+  saver.running = true; saver.msg = ""; paintBar();
+  const sid = state.sid;
+  try {
+    const items = state.cart.filter(l => state.data.menu.some(m => m.active && m.name === l.name && (m.size || "") === l.size))
+      .map(l => ({ name: l.name, size: l.size, toppings: l.toppings, qty: l.qty, note: l.note }));
+    await api("placeOrder", { id: sid, items });
+    if (state.view === "session" && state.sid === sid) {
+      state.data = await api("getSession", { id: sid });
+      state.cartDirty = false;
+      saver.msg = "✓ Đã đặt";
+    }
+  } catch (e) { saver.msg = "⚠ Chưa đặt được: " + e.message; }
+  saver.running = false;
+  if (state.view === "session" && state.sid === sid && state.data) { if ($("#peopleCard")) paintPeople(); paintBar(); }
+}
+window.addEventListener("beforeunload", e => { if (state.cartDirty) { e.preventDefault(); e.returnValue = ""; } });
+
+// Mã QR (VietQR) hoặc link MoMo để chuyển `amount` vào tài khoản nhận tiền của phiên s
+function payBoxHtml(s, amount) {
+  const info = transferNote();
+  if (s.bank === "MOMO") return `<h2>Chuyển MoMo ${money(amount)}</h2><div class="mute">${esc(s.acc_name)} · ${esc(s.account)}<br>Nội dung: <b>${esc(info)}</b></div><a class="btnlink" href="https://nhantien.momo.vn/${encodeURIComponent(s.account)}/${amount}" target="_blank" rel="noopener">Mở MoMo để trả ${money(amount)}</a>`;
+  const url = `https://img.vietqr.io/image/${encodeURIComponent(s.bank)}-${encodeURIComponent(s.account)}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(info)}&accountName=${encodeURIComponent(s.acc_name)}`;
+  const vq = buildVietQr(s.bank, String(s.account), amount, info);
+  return `<h2>Chuyển khoản ${money(amount)}</h2><img class="qr" src="${url}" ${vq ? `data-vq="${esc(vq)}"` : ""} alt="QR chuyển khoản"><div class="mute" style="text-align:center">${esc(s.bank)} · ${esc(s.account)} · ${esc(s.acc_name)}<br>Nội dung: <b>${esc(info)}</b></div>`;
+}
+function showPay() {
+  const s = state.data.session, sub = cartSubsidy(), total = cartTotal() - sub;
+  if (!s.bank || !s.account) return;
+  $("#payCard")?.remove();
+  const mine = state.data.orders.filter(o => o.phone === state.user.phone);
+  const done = !mine.length ? "" : mine.every(o => o.paid) ? "✓ Người đặt đã xác nhận" : mine.every(o => o.claimed) ? "Đã báo chuyển – chờ người đặt xác nhận" : "";
+  const box = document.createElement("div");
+  box.className = "card"; box.id = "payCard";
+  box.innerHTML = payBoxHtml(s, total)
+    + (sub ? `<div class="mute" style="text-align:center">Tiền món ${money(total + sub)} − Deeyu hỗ trợ ${money(sub)}</div>` : "")
+    + (done ? `<div class="mute" style="margin-top:10px;text-align:center">${done}</div>` : `<button class="primary" id="claimBtn">✓ Tôi đã chuyển khoản</button>`);
+  $("#panel").prepend(box);
+  paintQrs();
+  if ($("#claimBtn")) $("#claimBtn").onclick = claimPaid;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+// Người đặt món tự báo đã chuyển -> người tạo phiên thấy nhãn "Báo đã chuyển", chỉ cần bấm xác nhận
+async function claimPaid() {
+  if (state.cartDirty) return toast("Bạn chưa bấm Đặt – hãy đặt món trước khi báo chuyển khoản");
+  const b = $("#claimBtn"); b.disabled = true;
+  try { await api("claimPaid", { id: state.sid }); toast("Đã báo người đặt ✓"); await refreshSession(); }
+  catch (e) { toast(e.message); b.disabled = false; }
+}
+
+/* --- Quản lý (người đặt) --- */
+// Dòng cuối của tin nhắn: SĐT, địa điểm, giờ nhận ("giao liền" / "giao lúc 11:30"), cơm canh thêm (phiên cơm)
+const deliveryText = s => s.delivery === "now" ? "giao liền" : s.delivery ? `giao lúc ${isoToTime(s.delivery)}` : "";
+const summaryTail = s => [s.owner_phone, s.place, deliveryText(s)].filter(Boolean).join(", ") + "." + (s.extra_full && s.kind !== "nuoc" ? " Cơm canh thêm đầy đủ." : "");
+// Đơn tính vào tin nhắn: đặt trước chỉ tính đơn đã chuyển khoản
+const summaryOrders = () => state.data.session.prepay ? state.data.orders.filter(o => o.paid) : state.data.orders;
+function buildSummary() {
+  const { session: s } = state.data, agg = {};
+  summaryOrders().forEach(o => { const a = agg[orderLabel(o)] ||= { qty: 0, price: o.price }; a.qty += o.qty; });
+  const lines = Object.entries(agg).map(([n, a]) => `${a.qty}p ${n} (${money(a.price)})`);
+  return lines.join("\n") + (lines.length ? "\n" : "") + summaryTail(s);
+}
+// Tổng hợp đơn: như tin nhắn tổng hợp nhưng cuối mỗi món ghi ai đặt (đặt từ 2 phần ghi ×n, kèm ghi chú riêng)
+function buildDetail() {
+  const { session: s } = state.data, agg = {};
+  summaryOrders().forEach(o => {
+    const a = agg[orderLabel(o)] ||= { qty: 0, price: o.price, who: {} }, w = a.who[o.phone] ||= { name: o.name, qty: 0, notes: [] };
+    a.qty += o.qty; w.qty += o.qty;
+    if (o.note && !w.notes.includes(o.note)) w.notes.push(o.note);
+  });
+  const lines = Object.entries(agg).map(([n, a]) => `${a.qty}p ${n} (${money(a.price)}) – ` +
+    Object.values(a.who).map(w => w.name + (w.qty > 1 ? ` ×${w.qty}` : "") + (w.notes.length ? ` (${w.notes.join("; ")})` : "")).join(", "));
+  return lines.join("\n") + (lines.length ? "\n" : "") + summaryTail(s);
+}
+
+// "Trà đào (L)" -> tên "Trà đào" + size "L". Mục có chữ "topping" là danh sách topping (cộng thêm giá cho món nước)
+const SIZE_RE = /\s*\((2XL|XL|S|M|L|\d+ml)\)\s*$/i;
+const splitSize = n => { const m = n.match(SIZE_RE); return m ? { name: n.replace(SIZE_RE, "").trim(), size: m[1].toUpperCase() } : { name: n, size: "" }; };
+const isTopping = m => /topping/i.test(m.category || "");
+const menuLabel = m => m.name + (m.size ? ` (${m.size})` : "");
+const orderLabel = o => `${o.item}${o.size ? ` (${o.size})` : ""}${o.toppings ? " + " + o.toppings.split("|").join(", ") : ""}`;
+function drinkOptions(type) {   // món gọi được (không tính topping), gom các size cùng tên
+  const by = new Map();
+  state.data.menu.filter(m => m.active && m.type === type && !isTopping(m)).forEach(m => {
+    let it = by.get(m.name);
+    if (!it) by.set(m.name, it = { name: m.name, category: m.category, variants: [] });
+    it.variants.push(m);
+  });
+  return [...by.values()];
+}
+const toppingsOf = type => state.data.menu.filter(m => m.active && m.type === type && isTopping(m));
+function menuText(type) {
+  const line = m => `${menuLabel(m)} - ${money(m.price)}${m.active ? "" : " (hết)"}`;
+  return groupsText(groupByCat(state.data.menu.filter(m => m.type === type)).map(g => ({ cat: g.cat, lines: g.items.map(line) })));
+}
+// "35" / "35k" / "35.000" / "12.5" / "12,5k" -> đồng
+function toPrice(raw, suffix) {
+  raw = raw.replace(/[.,]+$/, ""); suffix = (suffix || "").toLowerCase();
+  let price;
+  if (/^\d+[.,]\d{1,2}$/.test(raw)) price = parseFloat(raw.replace(",", ".")) * 1000;
+  else {
+    price = Number(raw.replace(/[.,]/g, ""));
+    if (suffix === "k" || (!suffix && price < 1000)) price *= 1000;
+  }
+  return Math.round(price);
+}
+const cleanName = n => n.replace(/^[^\p{L}\p{N}]+/u, "").replace(/[\s\-–|:/,;+]+$/g, "").replace(/^\d+[.)]\s+/, "").trim();
+// "Trà đào M 25 L 30" / "Trà đào 25k/30k" -> [{ name: "Trà đào (M)", price: 25000 }, { name: "Trà đào (L)", price: 30000 }]; không có giá -> []
+const SIZE_DEFAULT = { 2: ["M", "L"], 3: ["S", "M", "L"] };
+const TAIL_RE = /^(.*?)[\s\-–—|/,;:.…]*(?:(?<![\p{L}\p{N}])(XL|S|M|L)(?![\p{L}\p{N}])[\s:.\-]*)?(\d[\d.,]*)\s*(k|đ|d|₫|vnđ|vnd)?\s*$/iu;
+function parseMenuLine(l) {
+  let rest = l.trim(); const toks = [];
+  for (;;) {
+    const m = TAIL_RE.exec(rest);
+    if (!m) break;
+    const raw = m[3].replace(/[.,]+$/, ""), unit = m[4], size = m[2];
+    // số trần < 10 (VD "Cuộn 9") là một phần của tên, không phải giá
+    if (!(unit || size || /^\d+[.,]\d{1,2}$/.test(raw) || Number(raw.replace(/[.,]/g, "")) >= 10)) break;
+    const price = toPrice(raw, unit);
+    if (!(price > 0)) break;
+    toks.unshift({ price, size: size && size.toUpperCase() }); rest = m[1];
+  }
+  const name = cleanName(rest);
+  if (!toks.length || !name) return [];
+  if (toks.length === 1) return [{ name: toks[0].size ? `${name} (${toks[0].size})` : name, price: toks[0].price }];
+  const labels = toks.every(t => t.size) ? toks.map(t => t.size) : (SIZE_DEFAULT[toks.length] || toks.map((_, i) => "#" + (i + 1)));
+  return toks.map((t, i) => ({ name: `${name} (${labels[i]})`, price: t.price }));
+}
+// Dòng không giá, ngắn = tiêu đề mục ("TRÀ SỮA" -> "Trà sữa")
+const cleanHeading = l => {
+  let h = l.replace(/^[#\s]+/, "").replace(/^[^\p{L}\p{N}]+/u, "").replace(/[\s:\-–|/.]+$/g, "").trim();
+  if (h === h.toUpperCase()) h = h.toLowerCase().replace(/^./u, c => c.toUpperCase());
+  return h.slice(0, 60);
+};
+const isHeading = l => l.length <= 40 && /\p{L}/u.test(l) && !parseMenuLine(l).length;
+
+// Ô menu: dòng "# Tên mục" bắt đầu một nhóm; các món trước mọi "#" không thuộc mục nào
+function readGroups(text) {
+  const groups = [{ cat: "", lines: [] }]; let cur = groups[0];
+  text.split("\n").map(l => l.trim()).filter(Boolean).forEach(l => {
+    if (l[0] === "#") {
+      const cat = l.replace(/^#+\s*/, "").trim();
+      cur = groups.find(g => g.cat === cat);
+      if (!cur) groups.push(cur = { cat, lines: [] });
+    } else cur.lines.push(l);
+  });
+  return groups;
+}
+const groupsText = groups => groups.filter(g => g.lines.length).map(g => (g.cat ? `# ${g.cat}\n` : "") + g.lines.join("\n")).join("\n");
+// Thêm món [{name, price, cat}] vào ô menu, bỏ món trùng tên; trùng tên khác mục -> thêm "(tên mục)"
+function mergeIntoBox(box, items) {
+  const groups = readGroups(box.value), have = new Map();
+  groups.forEach(g => g.lines.forEach(l => { const p = parsePriceLine(l.replace(/\(hết\)\s*$/i, ""), true); if (p) have.set(p.name.toLowerCase(), g.cat); }));
+  let added = 0;
+  items.forEach(it => {
+    let name = it.name; const cat = it.cat || "";
+    if (have.has(name.toLowerCase())) {
+      if (!cat || have.get(name.toLowerCase()) === cat) return;
+      name = `${name} (${cat})`;
+      if (have.has(name.toLowerCase())) return;
+    }
+    have.set(name.toLowerCase(), cat);
+    let g = groups.find(x => x.cat === cat);
+    if (!g) groups.push(g = { cat, lines: [] });
+    g.lines.push(`${name} - ${money(it.price)}`); added++;
+  });
+  box.value = groupsText(groups);
+  return added;
+}
+const groupByCat = items => {
+  const groups = [];
+  items.forEach(m => { const cat = m.category || ""; let g = groups.find(x => x.cat === cat); if (!g) groups.push(g = { cat, items: [] }); g.items.push(m); });
+  return groups.sort((a, b) => (a.cat ? 1 : 0) - (b.cat ? 1 : 0));
+};
+
+// "Cơm gà - 35.000đ" / "Trà đá 5k" / "Cà phê 12.5" / "20" -> { name, price (đồng) } hoặc null
+// zero = true: cho phép giá 0 (món chọn kèm combo trong mục "Topping…" – không cộng tiền)
+function parsePriceLine(l, zero = false) {
+  const m = l.trim().match(/^(.*?)[\s\-–—|:.…]*?(\d[\d.,]*)\s*(k|đ|d|₫|vnđ|vnd)?\s*$/i);
+  if (!m) return null;
+  const name = m[1]
+    .replace(/^[^\p{L}\p{N}]+/u, "")                          // bỏ emoji / ký hiệu đầu dòng
+    .replace(/[\s:\-–|(]+\d[\d.,]*\s*(k|đ|vnđ)\)?$/i, "")      // "Ức gà: 27K - 30K" -> bỏ "27K", giữ giá cuối 30K
+    .replace(/[\s\-–|:+]+$/g, "").replace(/^\d+[.)]\s+/, "");
+  if (!name) return null;
+  const price = toPrice(m[2], m[3]);
+  return price > 0 || (zero && price === 0) ? { name, price } : null;
+}
+function parseMenu(text, type) {
+  let category = "";
+  return text.split("\n").map(l => l.trim()).filter(Boolean).flatMap(l => {
+    if (l[0] === "#") { category = l.replace(/^#+\s*/, "").trim().slice(0, 60); return []; }
+    const active = !/\(hết\)\s*$/i.test(l);
+    l = l.replace(/\(hết\)\s*$/i, "").trim();
+    const p = parsePriceLine(l, /topping/i.test(category));
+    if (!p) throw new Error(`Dòng sai định dạng: "${l}" (cần "Tên món - giá", VD "Cơm gà - 35K"; dòng "# Tên mục" để chia mục)`);
+    const { name, size } = splitSize(p.name);
+    return [{ name, size: /topping/i.test(category) ? "" : size, price: p.price, type, active, category }];
+  });
+}
+
+/* --- Nhập menu nhanh (riêng cho Cơm / Nước): dán văn bản hoặc ảnh chụp màn hình --- */
+const TYPE_INFO = {
+  com:  { icon: "🍚", label: "cơm", eg: "Cơm gà xối mỡ - 35K\nCơm sườn - 40K" },
+  nuoc: { icon: "🥤", label: "nước", eg: "Trà đá - 5K\nCà phê sữa - 20K" }
+};
+
+// OCR hay tách giá ra dòng riêng -> ghép lại với dòng tên phía trên
+function joinPriceLines(text) {
+  const out = [];
+  text.split("\n").map(l => l.trim()).filter(Boolean).forEach(l => {
+    const priceOnly = /^[\d.,]+\s*(k|đ|d|₫|vnđ|vnd)?$/i.test(l);
+    if (priceOnly && out.length && !/\d\s*(k|đ|d|₫|vnđ|vnd)?$/i.test(out[out.length - 1])) out[out.length - 1] += " " + l;
+    else out.push(l);
+  });
+  return out;
+}
+
+// Dòng KHÔNG phải món chính: SĐT/địa chỉ quán -> bỏ; lưu ý về món (sốt, món thêm...) -> ghi chú của mục cơm/nước
+const PHONE_RE = /(?:\+?84|0)\d[\d\s.\-]{7,}\d/;
+const NOTE_RE = /lưu ý|ghi chú|\bthêm\b|chỉ thêm|phần cơm thứ|ăn kèm/i;
+// Menu combo: "2 món: 27K" + danh sách món không giá để chọn -> combo là món có giá, các món chọn là topping giá 0 (mục chứa chữ "topping")
+const COMBO_RE = /(?<![\p{L}\p{N}])\d+\s*món(?![\p{L}])/iu, COMBO_CAT = "Combo chọn món", OPT_CAT = "Topping: món chọn trong combo";
+const OPT_RE = /^[^\p{L}\p{N}]*\d+\s*[.)]\s+(\S.*)$/u;
+// SĐT, địa chỉ, ship... của quán: bỏ hẳn, không lưu
+const DROP_RE = /đặt món|đặt hàng|hotline|sđt|số điện thoại|liên hệ|zalo|freeship|giao hàng|giao (?:liền|tận|khu)|đợt \d|chuyến \d|comment|địa chỉ|\bđc\b/i;
+// "Cơm thêm 5K" -> thành món có nút + ở mục cơm, không nằm trong ghi chú
+const EXTRA_RICE_RE = /cơm thêm|thêm cơm|phần cơm thêm/i;
+const isDropLine = l => PHONE_RE.test(l) || DROP_RE.test(l);
+
+// Phân tích văn bản menu (không đụng tới giao diện): món + size + giá, topping, tên quán đoán được, ghi chú
+function analyzeMenu(text, type) {
+  const items = [], notes = [];
+  let skipped = 0, dropped = 0, cat = "", shop = "";
+  const all = joinPriceLines(text);
+  // Dòng tiêu đề đầu tiên (khi menu có ≥ 2 tiêu đề) là tên quán, các tiêu đề sau là tên mục
+  const isTitle = l => !isDropLine(l) && !NOTE_RE.test(l) && l[0] !== "#" && isHeading(l);
+  if (!state.pendingNote.shops[type] && all.length && isTitle(all[0]) && all.filter(isTitle).length >= 2) shop = cleanHeading(all.shift());
+  const hasCombo = all.some(l => COMBO_RE.test(l) && !isDropLine(l) && parseMenuLine(l).length);
+  all.forEach(l => {
+    if (l[0] === "#") { cat = cleanHeading(l); return; }
+    if (!/[\p{L}\p{N}]/u.test(l)) return;   // dòng kẻ ngang "———"
+    if (hasCombo && !parseMenuLine(l).length && !isDropLine(l) && !NOTE_RE.test(l)) {
+      const o = OPT_RE.exec(l), name = o && cleanName(o[1]);
+      if (name) return items.push({ name, price: 0, cat: OPT_CAT });
+    }
+    if (hasCombo && COMBO_RE.test(l) && !isDropLine(l)) {
+      const ps = parseMenuLine(l);
+      if (ps.length) return ps.forEach(p => items.push({ ...p, name: /^combo/i.test(p.name) ? p.name : "Combo " + p.name, cat: COMBO_CAT }));
+    }
+    const isExtraRice = type === "com" && EXTRA_RICE_RE.test(l) && parseMenuLine(l).length;
+    if (!isExtraRice && isDropLine(l)) return dropped++;
+    if (!isExtraRice && NOTE_RE.test(l)) {
+      const clean = l.replace(/^[^\p{L}\p{N}+]+/u, "");
+      if (!state.pendingNote[type].includes(clean) && !notes.includes(clean)) notes.push(clean);
+      return;
+    }
+    const ps = parseMenuLine(l);
+    if (ps.length) return ps.forEach(p => items.push({ ...p, cat }));
+    if (isHeading(l)) { cat = cleanHeading(l); return; }
+    skipped++;
+  });
+  return { shop, items, notes, skipped, dropped };
+}
+
+// Gom kết quả phân tích thành các dòng xem trước: mỗi món (kèm các size) hoặc topping là một dòng
+function previewRows(items) {
+  const rows = [];
+  items.forEach(it => {
+    const top = /topping/i.test(it.cat), { name, size } = top ? { name: it.name, size: "" } : splitSize(it.name);
+    const key = it.cat + "\u0000" + name;
+    let r = rows.find(x => x.key === key);
+    if (!r) rows.push(r = { key, cat: it.cat, name, top, items: [] });
+    r.items.push({ ...it, size });
+  });
+  return rows;
+}
+function drawPreview(type) {
+  const box = $(`[data-preview="${type}"]`), pv = state.preview[type];
+  if (!pv) { box.innerHTML = ""; return; }
+  const price = r => r.top ? (r.items[0].price ? "+" + money(r.items[0].price) : "") : r.items.map(i => (i.size ? i.size + " " : "") + money(i.price)).join(" · ");
+  let html = "", lastCat = null;
+  pv.rows.forEach((r, i) => {
+    if (r.cat !== lastCat) { html += `<div class="cat">${r.cat ? esc(r.cat) : "Chưa có mục"}${r.top ? (r.items[0].price ? " (cộng thêm giá)" : " (chọn kèm combo, không cộng giá)") : ""}</div>`; lastCat = r.cat; }
+    html += `<label class="chk"><input type="checkbox" data-prow="${i}" checked> <span><b>${esc(r.name)}</b> <span class="mute">${esc(price(r))}</span></span></label>`;
+  });
+  box.innerHTML = `<div class="card" style="background:#fffdf9;border:1px dashed var(--brand);margin:10px 0 0">
+    <h2>Kết quả đọc – bỏ tích dòng sai rồi thêm vào menu</h2>
+    ${pv.shop ? `<div>🏪 Tên quán: <b>${esc(pv.shop)}</b></div>` : ""}
+    ${html || `<div class="mute">Không đọc được món nào có giá.</div>`}
+    ${pv.notes.length ? `<div class="mute" style="margin-top:8px">ℹ️ Lưu ý sẽ ghi lại:<br>${pv.notes.map(esc).join("<br>")}</div>` : ""}
+    <div class="mute" style="margin-top:6px">${pv.dropped ? `Bỏ ${pv.dropped} dòng SĐT/địa chỉ quán. ` : ""}${pv.skipped ? `${pv.skipped} dòng không có giá bị bỏ qua.` : ""}</div>
+    <div class="row" style="margin-top:8px"><button class="primary" data-pv-ok style="margin:0">Thêm vào menu ${TYPE_INFO[type].label}</button><button class="ghost" data-pv-no>Bỏ qua</button></div>
+  </div>`;
+  box.querySelector("[data-pv-no]").onclick = () => { state.preview[type] = null; drawPreview(type); };
+  box.querySelector("[data-pv-ok]").onclick = () => {
+    const picked = [...box.querySelectorAll("[data-prow]:checked")].map(x => pv.rows[+x.dataset.prow]);
+    const added = mergeIntoBox($("#m-" + type), picked.flatMap(r => r.items.map(i => ({ name: i.size ? `${r.name} (${i.size})` : r.name, price: i.price, cat: r.cat }))));
+    pv.notes.forEach(n => { if (!state.pendingNote[type].includes(n)) state.pendingNote[type].push(n); });
+    $(`[data-notes="${type}"]`).innerHTML = manageNotes(type);
+    if (pv.shop && !state.pendingNote.shops[type]) { state.pendingNote.shops[type] = pv.shop; $(`[data-shop="${type}"]`).value = pv.shop; }
+    state.preview[type] = null; drawPreview(type);
+    state.dirty = true; updCount(type);
+    $(`[data-imp-status="${type}"]`).textContent = `Đã thêm ${added} dòng vào danh sách món. Bấm "Lưu menu" để mọi người thấy.`;
+    goStep(type, 2); toast(`Đã thêm ${added} dòng – kiểm tra rồi bấm Lưu menu`);
+  };
+}
+
+let tessLoading;
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve();
+  return tessLoading ||= new Promise((ok, fail) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js";
+    s.onload = ok; s.onerror = () => { tessLoading = null; fail(new Error("Không tải được bộ đọc ảnh (cần internet)")); };
+    document.head.appendChild(s);
+  });
+}
+// Phóng to, chuyển xám, kéo giãn tương phản; menu nền tối chữ sáng thì đảo màu -> OCR đọc tốt hơn
+async function prepareForOcr(file) {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(3, Math.max(1, 2200 / bmp.width)), w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const cx = cv.getContext("2d", { willReadFrequently: true });
+  cx.imageSmoothingQuality = "high"; cx.drawImage(bmp, 0, 0, w, h);
+  const img = cx.getImageData(0, 0, w, h), d = img.data, g = new Uint8Array(w * h), hist = new Array(256).fill(0);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) { g[j] = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0; hist[g[j]]++; }
+  const pct = q => { let c = 0; for (let v = 0; v < 256; v++) { c += hist[v]; if (c >= g.length * q) return v; } return 255; };
+  const lo = pct(0.02), hi = Math.max(lo + 1, pct(0.98)), mean = g.reduce((t, v) => t + v, 0) / g.length, invert = mean < 110;
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+    let v = Math.max(0, Math.min(255, (g[j] - lo) * 255 / (hi - lo)));
+    if (invert) v = 255 - v;
+    d[i] = d[i + 1] = d[i + 2] = v;
+  }
+  cx.putImageData(img, 0, 0);
+  return cv;
+}
+// Gom các từ (có tọa độ) thành văn bản: tách cột theo khe trống dọc, mỗi cột đọc từ trên xuống
+function wordsToColumnText(words, W) {
+  words = words.filter(w => w.text.trim() && w.x1 > w.x0 && w.y1 > w.y0);
+  if (!words.length) return "";
+  const hs = words.map(w => w.y1 - w.y0).sort((a, b) => a - b), mh = hs[hs.length >> 1];
+  const bw = Math.max(2, Math.round(mh / 2)), nb = Math.ceil(W / bw) + 1, cov = new Array(nb).fill(0);
+  words.forEach(w => { for (let b = Math.floor(w.x0 / bw); b <= Math.min(nb - 1, Math.floor(w.x1 / bw)); b++) cov[b]++; });
+  const thr = Math.floor(Math.max(...cov) * 0.08), first = cov.findIndex(c => c > 0), last = cov.length - 1 - [...cov].reverse().findIndex(c => c > 0);
+  const cuts = [];
+  for (let b = first; b <= last;) {
+    if (cov[b] > thr) { b++; continue; }
+    let e = b; while (e <= last && cov[e] <= thr) e++;
+    if ((e - b) * bw >= 2 * mh) cuts.push(((b + e) / 2) * bw);
+    b = e;
+  }
+  let cols = Array.from({ length: cuts.length + 1 }, () => []);
+  words.forEach(w => cols[cuts.filter(c => c < (w.x0 + w.x1) / 2).length].push(w));
+  cols = cols.filter(c => c.length);
+  // cột gần như chỉ toàn số (cột giá của bảng "tên | giá") thì gộp lại với cột bên trái
+  const merged = [];
+  cols.forEach(c => {
+    const nums = c.filter(w => /^\d[\d.,]*(k|đ|d)?$/i.test(w.text.trim())).length;
+    if (merged.length && nums >= 0.7 * c.length) merged[merged.length - 1].push(...c); else merged.push([...c]);
+  });
+  return merged.map(col => {
+    const lines = [];
+    col.sort((a, b) => (a.y0 + a.y1) - (b.y0 + b.y1)).forEach(w => {
+      const yc = (w.y0 + w.y1) / 2, L = lines[lines.length - 1];
+      if (L && Math.abs(yc - L.y) <= 0.6 * mh) { L.w.push(w); L.y += (yc - L.y) / L.w.length; } else lines.push({ y: yc, w: [w] });
+    });
+    return lines.map(L => L.w.sort((a, b) => a.x0 - b.x0).map(w => w.text).join(" ")).join("\n");
+  }).join("\n");
+}
+// Cắt dải dọc [f0, f1] của ảnh (tỉ lệ 0..1), thu nhỏ (cạnh dài ≤ 1400px) cho nhanh, JPEG -> base64
+function cropToBase64(bmp, f0, f1) {
+  const sx = Math.round(bmp.width * f0), sw = Math.round(bmp.width * f1) - sx, k = Math.min(1, 1400 / Math.max(sw, bmp.height));
+  const cv = document.createElement("canvas"); cv.width = Math.round(sw * k); cv.height = Math.round(bmp.height * k);
+  cv.getContext("2d").drawImage(bmp, sx, 0, sw, bmp.height, 0, 0, cv.width, cv.height);
+  return cv.toDataURL("image/jpeg", 0.7).split(",")[1];
+}
+// Menu dài/nhiều cột: cắt 3 dải (chồng nhẹ 2%) đọc song song cho nhanh, rồi gộp theo mục, bỏ dòng trùng.
+// Chờ tối đa limitMs (15 giây): dải nào xong thì dùng, dải chậm bỏ qua và báo `late`
+async function aiReadMenu(file, onDone, limitMs = 15000) {
+  const bmp = await createImageBitmap(file), wide = bmp.width / bmp.height > 0.6;
+  const strips = wide ? [[0, 0.353], [0.313, 0.687], [0.647, 1]] : [[0, 1]];
+  let done = 0, firstErr = null; const t0 = Date.now(), got = [];
+  const jobs = strips.map(([a, b], i) => api("readMenuImage", { image: cropToBase64(bmp, a, b), mime: "image/jpeg" }).then(r => {
+    got[i] = r; done++; onDone?.(`Đã đọc xong ${done}/${strips.length} phần (${Math.round((Date.now() - t0) / 1000)}s)`);
+  }, e => { firstErr ||= e; }));
+  await Promise.race([Promise.all(jobs), new Promise(ok => setTimeout(ok, limitMs))]);
+  const rs = got.filter(Boolean), late = strips.length - rs.length - (firstErr ? 1 : 0);
+  if (!rs.length) throw firstErr || new Error(`TIMEOUT: AI chưa đọc xong trong ${Math.round(limitMs / 1000)} giây – thử lại, hoặc dùng ảnh nhỏ / rõ hơn`);
+  console.log("AI đọc menu:", rs.map(r => r.info));
+  const groups = [{ cat: "", lines: [] }];
+  rs.forEach(r => readGroups(r.text).forEach(g => {
+    let t = groups.find(x => x.cat === g.cat);
+    if (!t) groups.push(t = { cat: g.cat, lines: [] });
+    g.lines.forEach(l => { if (!t.lines.includes(l)) t.lines.push(l); });
+  }));
+  return { text: groupsText(groups), shop: rs.map(r => r.shop).find(Boolean) || "", notes: [...new Set(rs.flatMap(r => r.notes))], info: rs.map((r, i) => `Phần ${i + 1} – ${r.info}`).join("\n"), late: Math.max(0, strips.length - rs.length) };
+}
+async function ocrImage(file, onProgress) {
+  await loadTesseract();
+  const cv = await prepareForOcr(file);
+  const worker = await Tesseract.createWorker("vie", 1, { logger: m => m.status && onProgress(m) });
+  try {
+    await worker.setParameters({ tessedit_pageseg_mode: "11", preserve_interword_spaces: "1" });
+    const { data } = await worker.recognize(cv, {}, { text: true, blocks: true });
+    const words = (data.blocks || []).flatMap(b => b.paragraphs.flatMap(p => p.lines.flatMap(l => l.words)))
+      .map(w => ({ text: w.text, x0: w.bbox.x0, y0: w.bbox.y0, x1: w.bbox.x1, y1: w.bbox.y1 }));
+    return words.length ? wordsToColumnText(words, cv.width) : data.text;
+  } finally { await worker.terminate(); }
+}
+
+const manageNotes = type => state.pendingNote[type].length
+  ? `<div class="mute" style="margin-bottom:8px">ℹ️ <b>Lưu ý món ${TYPE_INFO[type].label}:</b><br>${state.pendingNote[type].map(esc).join("<br>")}</div>` : "";
+// Các quán đã đặt trước đây (mới nhất mỗi quán), để nhập nhanh menu cơm/nước
+let histRaw;
+async function shopHistory() {
+  histRaw ||= await api("listSessions", { history: true });
+  const seen = new Set();
+  return histRaw.filter(x => x.id !== state.sid && x.shop && !seen.has(x.shop.toLowerCase()) && seen.add(x.shop.toLowerCase()));
+}
+// Menu có sẵn: lưu ở tab Presets trong Sheet (thêm quán mới bằng nút "⭐ Lưu làm menu có sẵn", không cần sửa code)
+let presetsP;
+const loadPresets = () => presetsP ||= api("listPresets").catch(e => { presetsP = null; throw e; });
+// "123 dòng món · 17 topping" cho dòng tóm tắt của danh sách món
+const countText = text => {
+  let n = 0, tp = 0;
+  readGroups(text).forEach(g => /topping/i.test(g.cat) ? tp += g.lines.length : n += g.lines.length);
+  return n || tp ? `${n} dòng món${tp ? ` · ${tp} topping` : ""} – bấm để xem / sửa tay` : "Chưa có món – bấm để gõ tay";
+};
+const updCount = type => $(`[data-count="${type}"]`).textContent = countText($("#m-" + type).value);
+// Bước ① có 2 nguồn menu (Có sẵn / Phiên cũ chọn ở bước Menu khi Tạo phiên), mỗi lúc chỉ hiện một
+const SOURCES = [["img", "Ảnh"], ["text", "Dán chữ"]];
+// Chuyển bước ① / ② của thẻ menu (không vẽ lại thẻ)
+function goStep(type, n) {
+  state.mstep[type] = n;
+  document.querySelectorAll(`[data-mstep^="${type}-"]`).forEach(b => b.classList.toggle("on", b.dataset.mstep === `${type}-${n}`));
+  document.querySelectorAll(`[data-mpane^="${type}-"]`).forEach(p => p.classList.toggle("hidden", p.dataset.mpane !== `${type}-${n}`));
+}
+function menuCard(type) {
+  const t = TYPE_INFO[type], src = state.src[type] ||= "img";
+  const pane = (k, html) => `<div data-pane="${type}-${k}" class="${src === k ? "" : "hidden"}">${html}</div>`;
+  // 2 bước: ① Nhập menu (ảnh / dán chữ → xem trước) → ② Kiểm tra & lưu (tên quán, lưu ý, danh sách món, Lưu menu). Cả hai khối luôn nằm trong DOM, chỉ ẩn / hiện
+  const step = state.mstep[type] ||= countText(menuText(type)).startsWith("Chưa") ? 1 : 2;
+  const mpane = (n, html) => `<div data-mpane="${type}-${n}" class="${step === n ? "" : "hidden"}">${html}</div>`;
+  return `
+    <div class="card ${state.mtab === type ? "" : "hidden"}" data-card="${type}">
+      <h2>${t.icon} Menu ${t.label}</h2>
+      <div class="tabs sm">${[[1, "Nhập menu"], [2, "Kiểm tra & lưu"]].map(([n, l]) => `<button data-mstep="${type}-${n}" class="${step === n ? "on" : ""}">${n}. ${l}</button>`).join("")}</div>
+      ${mpane(1, `<div class="step">① Lấy menu từ</div>
+      <div class="tabs sm">${SOURCES.map(([k, l]) => `<button data-src="${type}-${k}" class="${src === k ? "on" : ""}">${l}</button>`).join("")}</div>
+      ${pane("img", `<input type="file" data-imp-img="${type}" accept="image/*">
+        <div class="mute" style="margin-top:4px">Chọn ảnh chụp menu – AI tự đọc món và giá. Trên máy tính có thể Ctrl+V ảnh vào ô ở tab "Dán chữ".</div>`)}
+      ${pane("text", `<textarea data-imp-text="${type}" placeholder="Mỗi dòng một món có giá, VD:\n${esc(t.eg)}"></textarea>
+        <button class="ghost" data-imp-go="${type}" style="margin-top:8px;width:100%">Đọc văn bản</button>`)}
+      <div class="mute" data-imp-status="${type}" style="margin-top:6px"></div>
+      <div data-preview="${type}"></div>
+      <button class="ghost" data-mnext="${type}" style="margin-top:10px;width:100%">Tiếp: kiểm tra & lưu →</button>`)}
+      ${mpane(2, `<label>Tên quán</label>
+      <input data-shop="${type}" list="shopNames" autocomplete="off" maxlength="60" value="${esc(state.pendingNote.shops[type])}" placeholder="Tự lấy từ menu, hoặc gõ tên quán">
+      <div data-notes="${type}" style="margin-top:8px">${manageNotes(type)}</div>
+      <div class="step">② Danh sách món</div>
+      <details class="dd" data-adv="${type}" open><summary data-count="${type}">${countText(menuText(type))}</summary><div class="ddbox">
+        <textarea id="m-${type}" placeholder="${esc(t.eg)}" style="min-height:200px">${esc(menuText(type))}</textarea>
+        <div class="mute" style="margin-top:6px">Mỗi dòng <b>Tên món - giá</b>. Size: mỗi size một dòng, VD <b>Trà đào (M) - 25K</b>. Dòng <b># Tên mục</b> để chia mục; topping đặt dưới <b># Topping</b>. Thêm <b>(hết)</b> cuối dòng nếu hết món.</div>
+        <button class="ghost" data-addtop="${type}" style="margin-top:8px">＋ Thêm mục Topping</button>
+      </div></details>
+      <div class="err" data-err="${type}"></div>
+      <button class="primary" data-save>Lưu menu</button>
+      <label class="chk" style="margin-top:10px"><input type="checkbox" data-star="${type}"> ⭐ Thêm quán mới có sẵn</label>
+      <div class="mute">Tick để lưu quán này vào menu có sẵn khi bấm Lưu menu (ai tạo phiên cũng chọn lại được).</div>
+      <button class="ghost" data-mnext="${type}-back" style="margin-top:10px">← Nhập thêm</button>`)}
+    </div>`;
+}
+
+// Quán mới có trùng quán đã có sẵn không? Trùng tên -> exact; tên khác nhưng cùng quán -> AI (backend) đoán, lỗi AI thì so khớp chuỗi
+async function findDupShop(shop, type, list) {
+  const f = s => fold(s).replace(/[^a-z0-9]/g, ""), k = f(shop);
+  const same = list.find(p => f(p.shop) === k);
+  if (same) return { name: same.shop, exact: true };
+  if (!list.length) return null;
+  try { const r = await api("checkShop", { shop, type }); return r.dup ? { name: r.dup } : null; }
+  catch {
+    const near = list.find(p => { const q = f(p.shop); return q.length >= 4 && k.length >= 4 && (q.includes(k) || k.includes(q)); });
+    return near ? { name: near.shop } : null;
+  }
+}
+// Lưu menu thành "menu có sẵn": kiểm tra trùng quán (AI), hỏi lại, rồi lưu. Trả true nếu đã lưu. st(msg) hiện thông báo
+async function savePresetFlow(shop, type, text, st) {
+  text = text.split("\n").map(l => l.replace(/\s*\(hết\)\s*$/i, "").trim()).filter(Boolean).join("\n");
+  if (!shop) return st("Nhập tên quán trước khi thêm vào menu có sẵn."), false;
+  if (!text) return st("Danh sách món đang trống."), false;
+  try { parseMenu(text, type); } catch (e) { return st(e.message), false; }
+  st("Đang kiểm tra quán có bị trùng không…");
+  const dup = await findDupShop(shop, type, (await loadPresets().catch(() => [])).filter(p => p.type === type));
+  st("");
+  const warn = !dup ? "" : dup.exact ? `⚠ Đã có menu có sẵn "${dup.name}" – lưu sẽ GHI ĐÈ bản cũ.\n\n`
+    : `⚠ Quán "${shop}" có vẻ trùng với menu có sẵn "${dup.name}". Nếu là một quán thì bấm Hủy rồi dùng đúng tên cũ.\n\n`;
+  if (!confirm(`${warn}Thêm "${shop}" vào menu có sẵn (${TYPE_INFO[type].label})?\nAi tạo phiên cũng chọn được.`)) return st("Đã hủy – chưa thêm vào menu có sẵn."), false;
+  try { await api("savePreset", { shop, type, text }); presetsP = null; st(`Đã thêm "${shop}" vào menu có sẵn ✓`); return true; }
+  catch (e) { return st("Lỗi: " + e.message), false; }
+}
+// Ô ⭐ trong tab Thêm menu của phiên
+const addPreset = type => savePresetFlow($(`[data-shop="${type}"]`).value.trim(), type, $("#m-" + type).value,
+  m => { const el = $(`[data-imp-status="${type}"]`); if (el) el.textContent = m; });
+// Gợi ý tên quán (ô Tên quán) từ các phiên đã đặt
+function wireOld() {
+  shopHistory().then(list => {
+    const names = [...new Set(list.flatMap(x => x.shop.split(" / ")).map(x => x.trim()).filter(Boolean))];
+    const dl = $("#shopNames"); if (dl) dl.innerHTML = names.map(x => `<option value="${esc(x)}">`).join("");
+  }).catch(() => {});
+}
+
+function wireImport(type) {
+  const q = k => $(`[data-imp-${k}="${type}"]`);
+  const status = msg => q("status").textContent = msg;
+  // Phân tích văn bản trong ô và hiện kết quả xem trước, chờ người dùng bấm "Thêm vào menu"
+  const analyze = () => {
+    const text = q("text").value.trim();
+    if (!text) return status("Chưa có văn bản để phân tích.");
+    const r = analyzeMenu(text, type);
+    state.preview[type] = { ...r, rows: previewRows(r.items) };
+    drawPreview(type);
+    status(`Đọc được ${state.preview[type].rows.length} món. Bỏ tích dòng sai rồi bấm "Thêm vào menu ${TYPE_INFO[type].label}".`);
+  };
+  const runOcr = async file => {
+    state.busy = true; q("go").disabled = true;
+    try {
+      let text, ai = null, aiFail = "";
+      const t0 = Date.now(); let prog = "";
+      const tick = setInterval(() => status(`Đang đọc ảnh bằng AI… ${Math.round((Date.now() - t0) / 1000)}s ${prog}`), 1000);
+      try {
+        status("Đang đọc ảnh bằng AI…");
+        ai = await aiReadMenu(file, m => prog = "– " + m);
+        text = ai.text;
+        clearInterval(tick);
+      } catch (e) {
+        clearInterval(tick);
+        if (/^TIMEOUT/.test(e.message)) throw new Error(e.message.replace(/^TIMEOUT:\s*/, ""));   // quá 15 giây: không rơi xuống đọc ảnh cơ bản (chậm hơn)
+        aiFail = e.message === "NO_AI_KEY" ? "Chưa cấu hình GEMINI_API_KEY" : /không hợp lệ/.test(e.message) ? "Backend chưa deploy bản mới" : e.message;
+        status(`AI không dùng được (${aiFail}) – dùng đọc ảnh cơ bản, có thể sai. Đang đọc… (lần đầu ~30 giây)`);
+        text = await ocrImage(file, m => status(`Đọc ảnh cơ bản (có thể sai): ${m.status}${m.progress ? " " + Math.round(m.progress * 100) + "%" : ""}`));
+      }
+      q("text").value = text.trim();
+      state.dirty = true;
+      analyze();
+      if (ai) {
+        const pv = state.preview[type];
+        if (ai.shop && !pv.shop && !state.pendingNote.shops[type]) pv.shop = ai.shop;
+        pv.notes.push(...ai.notes.filter(n => !state.pendingNote[type].includes(n) && !pv.notes.includes(n)));
+        drawPreview(type);
+        status(`AI đã đọc: ${pv.rows.length} dòng trong ${Math.round((Date.now() - t0) / 1000)}s. Kiểm tra bên dưới rồi bấm "Thêm vào menu ${TYPE_INFO[type].label}".${ai.late ? `\n⚠ ${ai.late} phần ảnh chưa đọc kịp trong 15 giây – chọn lại ảnh để đọc lại.` : ""}\n${ai.info}`);
+        q("status").style.whiteSpace = "pre-line";
+      } else status(`⚠️ AI không dùng được (${aiFail}) nên đã dùng đọc ảnh cơ bản, kết quả có thể sai. ${q("status").textContent}`);
+    } catch (e) { status("Lỗi: " + e.message); }
+    state.busy = false; q("go").disabled = false;
+  };
+  q("img").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) runOcr(f); };
+  q("text").addEventListener("paste", e => {
+    const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith("image/"));
+    if (f) { e.preventDefault(); runOcr(f); }
+  });
+  q("go").onclick = analyze;
+}
+
+const noteHtml = raw => {
+  const n = parseNotes(raw);
+  const parts = ["com", "nuoc"].filter(t => n[t].length).map(t => `<b>${TYPE_INFO[t].icon} Lưu ý món ${TYPE_INFO[t].label}${n.shops[t] ? " – " + esc(n.shops[t]) : ""}</b><br>${n[t].map(esc).join("<br>")}`);
+  return parts.length ? parts.join("<br><br>") : "Chưa có ghi chú. Ghi chú tự lấy từ menu bạn nhập và hiện sau khi bấm Lưu menu.";
+};
+function drawManage() {
+  const { orders } = state.data;
+  state.pendingNote = parseNotes(state.data.session.note);
+  state.preview = {};
+  const types = kindTypes(state.data.session), P = state.panel, S = state.data.session;
+  state.mtab = types.includes(state.mtab) ? state.mtab : types[0];
+  const tabBtn = (k, label) => `<button data-mt="${k}" class="${state.mtab === k ? "on" : ""}">${label}</button>`;
+  const sec = {};
+  sec.menu = `
+    ${types.length > 1 ? `<div class="tabs">${tabBtn("com", "🍚 Menu cơm")}${tabBtn("nuoc", "🥤 Menu nước")}</div>` : ""}
+    <datalist id="shopNames"></datalist>
+    ${menuCard("com")}${menuCard("nuoc")}`;
+  sec.settings = `
+      <div class="card"><h2>⏰ Giờ chốt đơn</h2>
+        <div class="row"><input type="text" id="dlIn" data-time inputmode="numeric" maxlength="5" placeholder="HH:MM, VD: 10:30" class="grow" value="${esc(isoToTime(state.data.session.deadline))}"><button class="ghost" id="dlSave">Lưu</button></div>
+        <div class="mute" style="margin-top:4px">Giờ 24 giờ, từ 00:00 đến 23:59. Để trống nếu không cần đếm ngược.</div></div>
+      <div class="card"><h2>🎁 Deeyu hỗ trợ mỗi ${unitWord(state.data.session)}</h2>
+        <div class="row"><input type="number" id="subIn" class="grow" inputmode="numeric" min="0" placeholder="Nghìn đồng, VD: 20" value="${state.data.session.subsidy ? state.data.session.subsidy / 1000 : ""}"><button class="ghost" id="subSave">Lưu</button></div>
+        <div class="mute" style="margin-top:4px">Trừ vào tiền mỗi người phải trả. ${state.data.session.kind === "nuoc" ? "Tính theo từng ly nước." : "Không tính nước và cơm thêm."} Để trống = không hỗ trợ.</div></div>
+      <div class="card"><h2>🕐 Giờ nhận ${recvWord(S)}</h2>
+        <div class="tabs sm" id="dvTabs">${[["now", "Giao liền"], ["time", "Hẹn giờ"], ["", "Không ghi"]].map(([k, l]) => `<button data-dv="${k}">${l}</button>`).join("")}</div>
+        <div class="row hidden" id="dvRow"><input type="text" id="dvIn" data-time inputmode="numeric" maxlength="5" placeholder="HH:MM, VD: 11:30" class="grow" value="${esc(S.delivery && S.delivery !== "now" ? isoToTime(S.delivery) : "")}"><button class="ghost" id="dvSave">Lưu</button></div>
+        <div class="mute" style="margin-top:4px">Giờ hẹn người ta giao tới (24 giờ). Tin nhắn tổng hợp sẽ ghi "giao liền" hoặc "giao lúc …". "Không ghi" = bỏ đoạn này.</div></div>`;
+  sec.close = `
+      <div class="card"><h2>📝 Ghi chú đặt món</h2><div class="mute" id="noteView">${noteHtml(state.data.session.note)}</div></div>
+      <div class="card" id="ordersCard"><h2>Đơn của mọi người</h2>${ordersByPerson(orders, true)}</div>
+      <div class="card">
+        <h2>Tổng hợp đơn</h2>
+        <div class="mute" style="margin-bottom:6px">Giống tin nhắn tổng hợp, thêm tên người đặt ở cuối mỗi món.</div>
+        <pre class="sum" id="detail">${esc(buildDetail())}</pre>
+        <button class="ghost" id="copyDetail">Copy</button>
+      </div>
+      <div class="card">
+        <h2>Tin nhắn tổng hợp</h2>
+        <pre class="sum" id="sum">${esc(buildSummary())}</pre>
+        ${state.data.session.prepay ? `<div class="mute">Phiên yêu cầu chuyển khoản trước: tin nhắn chỉ tính đơn đã đánh dấu "✓ Đã trả".</div>` : ""}
+        <button class="ghost" id="copy">Copy</button>
+        ${S.kind === "nuoc" ? "" : `<label class="chk" style="margin-top:12px"><input type="checkbox" id="extraFull" ${S.extra_full ? "checked" : ""}> Cơm canh thêm đầy đủ</label>
+        <div class="mute">Tick nếu cần – tin nhắn tổng hợp sẽ thêm dòng "Cơm canh thêm đầy đủ."</div>`}
+      </div>`;
+  sec.delete = `
+      <div class="card">
+        <h2>🗑 Xóa phiên</h2>
+        <div class="mute">Xóa hẳn phiên này cùng menu và toàn bộ đơn. Chỉ người tạo phiên làm được, không hoàn tác. Bạn sẽ được hỏi lại trước khi xóa.</div>
+        <button class="ghost danger" id="delSession" style="margin-top:8px">🗑 Xóa phiên này</button>
+      </div>`;
+  $("#panel").innerHTML = sec[P];
+  state.dirty = false;
+  document.querySelectorAll("#panel textarea").forEach(t => t.addEventListener("input", () => state.dirty = true));
+  if (P === "menu") ["com", "nuoc"].forEach(t => $("#m-" + t).addEventListener("input", () => updCount(t)));
+  document.querySelectorAll("[data-mt]").forEach(b => b.onclick = () => { state.mtab = b.dataset.mt; syncManageTabs(); });
+  // Đổi nguồn menu (Có sẵn / Quán cũ / Ảnh / Dán chữ) mà không vẽ lại thẻ
+  document.querySelectorAll("[data-src]").forEach(b => b.onclick = () => {
+    const [type, k] = b.dataset.src.split("-");
+    state.src[type] = k;
+    document.querySelectorAll(`[data-src^="${type}-"]`).forEach(x => x.classList.toggle("on", x === b));
+    document.querySelectorAll(`[data-pane^="${type}-"]`).forEach(p => p.classList.toggle("hidden", p.dataset.pane !== b.dataset.src));
+  });
+  if (P === "menu") { ["com", "nuoc"].forEach(wireImport); wireOld(); }
+  document.querySelectorAll("[data-mstep]").forEach(b => b.onclick = () => { const [type, n] = b.dataset.mstep.split("-"); goStep(type, +n); });
+  document.querySelectorAll("[data-mnext]").forEach(b => b.onclick = () => { const [type, back] = b.dataset.mnext.split("-"); goStep(type, back ? 1 : 2); });
+  document.querySelectorAll("[data-addtop]").forEach(b => b.onclick = () => {
+    const box = $("#m-" + b.dataset.addtop);
+    if (!/^#\s*topping/im.test(box.value)) box.value = (box.value.trim() ? box.value.trim() + "\n" : "") + "# Topping\nTrân châu - 5K\nPudding - 7K";
+    box.focus(); box.scrollTop = box.scrollHeight; state.dirty = true; updCount(b.dataset.addtop);
+  });
+  if (P === "settings") $("#dlSave").onclick = async () => {
+    const raw = $("#dlIn").value.trim();
+    if (raw && !normTime(raw)) return toast("Giờ chốt theo 24 giờ, từ 00:00 đến 23:59 (VD 10:30)");
+    const deadline = timeToIso(raw);
+    try {
+      await api("setDeadline", { id: state.sid, deadline });
+      state.data.session.deadline = deadline;
+      $("#hdl").innerHTML = dlSpan(state.data.session);
+      toast(deadline ? "Đã lưu giờ chốt ✓" : "Đã bỏ giờ chốt");
+    } catch (e) { toast(e.message); }
+  };
+  if (P === "settings") $("#subSave").onclick = async () => {
+    const subsidy = Math.round(Number($("#subIn").value) * 1000) || 0;
+    try {
+      await api("setSubsidy", { id: state.sid, subsidy });
+      mem.set("subsidy_" + (state.data.session.kind || "com"), subsidy ? String(subsidy / 1000) : "");
+      toast(subsidy ? `Hỗ trợ ${money(subsidy)}/suất ✓` : "Đã bỏ hỗ trợ");
+      await refreshSession();
+    } catch (e) { toast(e.message); }
+  };
+  document.querySelectorAll("[data-shop]").forEach(i => i.oninput = () => { state.pendingNote.shops[i.dataset.shop] = i.value.trim().slice(0, 60); state.dirty = true; });
+  // Lưu menu + ghi chú bằng 1 lần gọi; cập nhật dữ liệu tại chỗ, không tải lại cả phiên
+  document.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
+    document.querySelectorAll("[data-err]").forEach(e => e.textContent = "");
+    const btns = document.querySelectorAll("[data-save]");
+    try {
+      const items = [...parseMenu($("#m-com").value, "com"), ...parseMenu($("#m-nuoc").value, "nuoc")];
+      const note = JSON.stringify(state.pendingNote);
+      btns.forEach(x => { x.disabled = true; x.textContent = "Đang lưu…"; });
+      const shop = [state.pendingNote.shops.com, state.pendingNote.shops.nuoc].filter(Boolean).join(" / ");
+      await api("saveMenu", { id: state.sid, items, note, shop });
+      state.data.session.shop = shop;
+      $("#title").textContent = shop || `Phiên của ${state.data.session.owner_name}`;
+      state.data.menu = items;
+      state.data.session.note = note;
+      ["com", "nuoc"].forEach(t => { $("#m-" + t).value = menuText(t); updCount(t); });
+      state.dirty = false;
+      toast("Đã lưu menu ✓");
+      // Ô ⭐ "Thêm quán mới có sẵn": lưu thêm menu vừa nhập thành menu có sẵn (kiểm tra trùng bằng AI)
+      for (const t of types) if ($(`[data-star="${t}"]`)?.checked && await addPreset(t)) $(`[data-star="${t}"]`).checked = false;
+    } catch (e) { const el = $(`[data-err="${state.mtab}"]`); if (el) el.textContent = e.message; else toast(e.message); }
+    btns.forEach(x => { x.disabled = false; x.textContent = "Lưu menu"; });
+  });
+  if (P === "close") wirePaid();
+  if (P === "close") $("#copy").onclick = () => copyText($("#sum").textContent);
+  if ($("#extraFull")) $("#extraFull").onchange = async e => {
+    const v = e.target.checked;
+    const repaint = () => { $("#sum").textContent = buildSummary(); $("#detail").textContent = buildDetail(); };
+    S.extra_full = v; repaint();
+    try { await api("setExtraFull", { id: state.sid, value: v }); }
+    catch (err) { S.extra_full = !v; e.target.checked = !v; repaint(); toast(err.message); }
+  };
+  if (P === "close") $("#copyDetail").onclick = () => copyText($("#detail").textContent);
+  // Giờ nhận cơm / nước: Giao liền (lưu ngay) · Hẹn giờ (nhập giờ rồi Lưu) · Không ghi
+  if (P === "settings") {
+    let mode = S.delivery === "now" ? "now" : S.delivery ? "time" : "";
+    const showMode = () => {
+      document.querySelectorAll("[data-dv]").forEach(b => b.classList.toggle("on", b.dataset.dv === mode));
+      $("#dvRow").classList.toggle("hidden", mode !== "time");
+    };
+    const saveDelivery = async delivery => {
+      try { await api("setDelivery", { id: state.sid, delivery }); S.delivery = delivery; toast(delivery === "now" ? "Đã ghi: giao liền ✓" : delivery ? `Đã ghi: giao lúc ${isoToTime(delivery)} ✓` : "Đã bỏ giờ nhận"); }
+      catch (e) { toast(e.message); }
+    };
+    showMode();
+    document.querySelectorAll("[data-dv]").forEach(b => b.onclick = () => {
+      mode = b.dataset.dv; showMode();
+      if (mode === "now") saveDelivery("now"); else if (!mode) saveDelivery("");
+    });
+    $("#dvSave").onclick = () => {
+      const raw = $("#dvIn").value.trim(), hm = normTime(raw);
+      if (!hm) return toast("Giờ nhận theo 24 giờ, từ 00:00 đến 23:59 (VD 11:30)");
+      saveDelivery(timeToIso(hm));
+    };
+  }
+  if (P === "delete") $("#delSession").onclick = async () => {
+    const people = new Set(orders.map(o => o.phone)).size;
+    if (!confirm(`Xóa phiên "${state.data.session.shop || "đặt cơm"}"?\n${people ? `Đơn của ${people} người sẽ bị xóa theo. ` : ""}Không thể hoàn tác.`)) return;
+    const b = $("#delSession");
+    b.disabled = true; b.textContent = "Đang xóa…";
+    try {
+      await api("deleteSession", { id: state.sid });
+      toast("Đã xóa phiên ✓");
+      go("home", null, true);
+    } catch (e) { toast(e.message); b.disabled = false; b.textContent = "🗑 Xóa phiên này"; }
+  };
+  if (P === "close") {
+    setBar(`<button class="primary" id="lock" style="margin:0">${isOpen() ? "🔒 Chốt đơn (khóa đặt món)" : "🔓 Mở lại phiên"}</button>`);
+    $("#lock").onclick = async () => {
+      if (isOpen() && !confirm("Chốt đơn? Mọi người sẽ không đặt thêm được.")) return;
+      try { await api("setStatus", { id: state.sid, status: isOpen() ? "locked" : "open" }); await refreshSession(); } catch (e) { toast(e.message); }
+    };
+  } else setBar("");
+}
+
+// Bấm "Chưa trả / Đã trả": đổi màu ngay trên màn hình, gửi server sau; lỗi thì trả về như cũ
+function paintManageOrders() {
+  $("#ordersCard").innerHTML = `<h2>Đơn của mọi người</h2>${ordersByPerson(state.data.orders, true)}`;
+  $("#sum").textContent = buildSummary();
+  $("#detail").textContent = buildDetail();
+  wirePaid();
+}
+function wirePaid() {
+  document.querySelectorAll("[data-paid]").forEach(b => b.onclick = async () => {
+    const ph = b.dataset.paid, v = b.dataset.v === "1", rows = state.data.orders.filter(o => o.phone === ph), old = rows.map(o => o.paid);
+    rows.forEach(o => o.paid = v); paintManageOrders();
+    try { await api("setPaid", { id: state.sid, orderPhone: ph, paid: v }); }
+    catch (e) { rows.forEach((o, i) => o.paid = old[i]); paintManageOrders(); toast(e.message); }
+  });
+}
+
+// Đổi tab con trong Quản lý mà không vẽ lại (giữ nội dung đang nhập)
+function syncManageTabs() {
+  document.querySelectorAll("[data-mt]").forEach(b => b.classList.toggle("on", b.dataset.mt === state.mtab));
+  ["com", "nuoc"].forEach(t => $(`[data-card="${t}"]`)?.classList.toggle("hidden", state.mtab !== t));
+}
+
+// Copy vào clipboard; trình duyệt chặn thì copy qua ô ẩn
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const t = document.createElement("textarea");
+    t.value = text; t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select();
+    const ok = document.execCommand("copy"); t.remove();
+    if (!ok) return toast("Không copy được, hãy copy thủ công");
+  }
+  toast("Đã copy ✓");
+}
+
+/* ===== BẢNG THANH TOÁN NHIỀU BỮA ===== */
+// state.sid = "<mã1>,<mã2>" hoặc "<mã1>,<mã2>&cap=60"; rỗng = màn hình chọn phiên
+const paySid = (ids, capK) => ids.join(",") + (capK > 0 ? "&cap=" + capK : "");
+async function viewPay() {
+  $("#title").textContent = "Bảng thanh toán";
+  $("#app").innerHTML = `<div class="mute">Đang tải…</div>`;
+  try {
+    if (!state.sid) return drawPayPick(await api("listSessions", { history: true }));
+    state.data = await api("payTable", { ids: state.sid.split("&")[0].split(",") });
+    drawPay();
+  } catch (e) { $("#app").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+function drawPayPick(list) {
+  const recent = Date.now() - 3 * 864e5;   // mặc định chọn các phiên trong 3 ngày qua
+  $("#app").innerHTML = `<div class="card"><h2>Chọn các bữa tính chung</h2>
+    <div class="mute">VD cả cuối tuần sinh hoạt. Mỗi người thấy tổng tiền phải trả của mình (đã trừ Deeyu hỗ trợ) và chuyển khoản một lần.</div>
+    ${list.length ? list.map(s => `<label class="chk"><input type="checkbox" value="${esc(s.id)}" ${new Date(s.created) > recent ? "checked" : ""}>
+      <span>${sessionLabel(s)}<br><span class="mute">${esc(s.owner_name)}${s.subsidy ? ` · hỗ trợ ${money(s.subsidy)}/suất` : ""}</span></span></label>`).join("") : `<div class="mute" style="margin-top:8px">Chưa có phiên nào.</div>`}
+    <div class="err" id="err"></div>
+    <button class="primary" id="ok">Xem bảng</button></div>`;
+  $("#ok").onclick = () => {
+    const ids = [...document.querySelectorAll("#app input:checked")].map(x => x.value);
+    if (!ids.length) return $("#err").textContent = "Chọn ít nhất 1 phiên";
+    if (ids.length > 20) return $("#err").textContent = "Tối đa 20 phiên";
+    go("pay", paySid(ids, 0));
+  };
+}
+// Mỗi người: tiền từng bữa, hỗ trợ (theo suất, có trần thì trừ dần từ bữa sớm nhất), còn phải trả
+function payRows(t, cap) {
+  const ss = [...t.sessions].sort((a, b) => new Date(a.created) - new Date(b.created));
+  const rows = t.people.map(p => {
+    let left = cap > 0 ? cap : Infinity, amount = 0, sub = 0, portions = 0;
+    const cells = ss.map(s => {
+      const c = p.by[s.id];
+      if (!c) return null;
+      const give = Math.min(left, subsidyOf(s, c.amount, c.portions));
+      left -= give; amount += c.amount; sub += give; portions += c.portions;
+      return { ...c, s, sub: give, due: c.amount - give };
+    });
+    const had = cells.filter(Boolean);
+    return { ...p, cells, amount, sub, portions, due: amount - sub,
+             paid: had.every(c => c.paid), claimed: had.every(c => c.paid || c.claimed) };
+  }).sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  return { ss, rows };
+}
+function drawPay() {
+  const [idPart, capPart] = state.sid.split("&cap="), ids = idPart.split(","), capK = Number(capPart) || 0;
+  const { ss, rows } = payRows(state.data, capK * 1000);
+  const me = rows.find(r => r.phone === state.user.phone), sum = f => rows.reduce((a, r) => a + f(r), 0);
+  const colName = s => {
+    const n = s.shop || s.owner_name;
+    return new Date(s.created).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }) + " " + (n.length > 16 ? n.slice(0, 15) + "…" : n);
+  };
+  // Người tạo phiên bấm được "Đã trả" (chỉ đổi ở các phiên của mình); người khác chỉ xem
+  const status = r => {
+    const own = r.cells.filter(c => c && c.s.owner_phone === state.user.phone), label = p => p ? "✓ Đã trả" : r.claimed ? "Báo chuyển" : "Chưa trả";
+    if (!own.length) return `<span class="tag ${r.paid ? "ok" : r.claimed ? "" : "locked"}">${label(r.paid)}</span>`;
+    const p = own.every(c => c.paid);
+    return `<button class="chip ${p ? "paid" : ""}" data-pp="${esc(r.phone)}" data-v="${p ? 0 : 1}">${label(p)}</button>`;
+  };
+  // Phần của tôi: gom các bữa chưa trả theo tài khoản nhận -> mỗi tài khoản một mã QR
+  let myCard = "";
+  if (me) {
+    const unpaid = me.cells.filter(c => c && !c.paid && c.due > 0), groups = {};
+    unpaid.forEach(c => { const g = groups[c.s.bank + "|" + c.s.account] ||= { s: c.s, amount: 0 }; g.amount += c.due; });
+    const left = unpaid.reduce((a, c) => a + c.due, 0);
+    myCard = `<div class="card"><h2>${left ? `Bạn cần trả ${money(left)}` : "✓ Bạn đã trả đủ"}</h2>
+      <div class="mute">Tiền món ${money(me.amount)}${me.sub ? ` − Deeyu hỗ trợ ${money(me.sub)}` : ""} = ${money(me.due)}</div>
+      ${Object.values(groups).filter(g => g.s.bank && g.s.account).map(g => `<div style="margin-top:14px">${payBoxHtml(g.s, g.amount)}</div>`).join("")}
+      ${!unpaid.length ? "" : unpaid.every(c => c.claimed) ? `<div class="mute" style="margin-top:10px;text-align:center">Đã báo chuyển – chờ người đặt xác nhận</div>` : `<button class="primary" id="claimAll">✓ Tôi đã chuyển khoản</button>`}</div>`;
+  }
+  // Ai thu bao nhiêu (giống "Thu hộ" trong sheet cũ)
+  const owners = {};
+  rows.forEach(r => r.cells.forEach(c => { if (!c) return; const o = owners[c.s.owner_phone] ||= { name: c.s.owner_name, due: 0, got: 0 }; o.due += c.due; if (c.paid) o.got += c.due; }));
+  $("#app").innerHTML = `
+    ${myCard}
+    <div class="card">
+      <div class="row"><h2 class="grow" style="margin:0">${ss.length} bữa · ${rows.length} người</h2><button class="ghost" id="repick">Chọn lại</button></div>
+      <div class="tblwrap" style="margin-top:10px"><table class="pay">
+        <thead><tr><th>Tên</th>${ss.map(s => `<th>${esc(colName(s))}</th>`).join("")}<th>Suất</th><th>Hỗ trợ</th><th>Cần trả</th><th></th></tr></thead>
+        <tbody>${rows.map(r => `<tr class="${r === me ? "me" : ""}"><td>${esc(r.name)}</td>${r.cells.map(c => `<td>${c ? money(c.amount) : ""}</td>`).join("")}<td>${r.portions}</td><td>${money(r.sub)}</td><td><b>${money(r.due)}</b></td><td>${status(r)}</td></tr>`).join("")}</tbody>
+        <tfoot><tr><td>Tổng</td>${ss.map((s, i) => `<td>${money(sum(r => r.cells[i]?.amount || 0))}</td>`).join("")}<td>${sum(r => r.portions)}</td><td>${money(sum(r => r.sub))}</td><td>${money(sum(r => r.due))}</td><td>${rows.filter(r => r.paid).length}/${rows.length} đã trả</td></tr></tfoot>
+      </table></div>
+      <div class="mute" style="margin-top:10px">Tiền món <b>${money(sum(r => r.amount))}</b> · Deeyu hỗ trợ <b>${money(sum(r => r.sub))}</b> · Cần thu <b>${money(sum(r => r.due))}</b><br>
+        ${Object.values(owners).map(o => `Thu hộ ${esc(o.name)}: <b>${money(o.due)}</b> (đã nhận ${money(o.got)})`).join("<br>")}</div>
+      <div class="row" style="margin-top:10px"><button class="ghost grow" id="copyLink">🔗 Copy link bảng</button><button class="ghost grow" id="copyTsv">📋 Copy sang Sheet</button></div>
+    </div>
+    <div class="card">
+      <h2>Trần hỗ trợ mỗi người</h2>
+      <div class="row"><input id="cap" type="number" inputmode="numeric" min="0" class="grow" placeholder="Nghìn đồng, VD: 60" value="${capK || ""}"><button class="ghost" id="capOk">Áp dụng</button></div>
+      <div class="mute" style="margin-top:4px">VD mỗi người được hỗ trợ tối đa 3 bữa = 60. Trừ dần từ bữa sớm nhất. Để trống = không giới hạn. Trần nằm trong link bảng nên ai mở link cũng thấy cùng số tiền.</div>
+    </div>`;
+  paintQrs();
+  $("#repick").onclick = () => go("pay", "");
+  $("#copyLink").onclick = () => copyText(location.href);
+  $("#copyTsv").onclick = () => {
+    // Dán vào Google Sheet: mỗi ô một cột, số tiền dạng số (đồng)
+    const lines = [["Tên", ...ss.map(colName), "Số suất", "Hỗ trợ", "Thanh toán", "Đã trả"],
+      ...rows.map(r => [r.name, ...r.cells.map(c => c ? c.amount : ""), r.portions, r.sub, r.due, r.paid ? "TRUE" : "FALSE"]),
+      ["Tổng", ...ss.map((s, i) => sum(r => r.cells[i]?.amount || 0)), sum(r => r.portions), sum(r => r.sub), sum(r => r.due), rows.filter(r => r.paid).length]];
+    copyText(lines.map(a => a.map(x => String(x).replace(/[\t\n]/g, " ")).join("\t")).join("\n"));
+  };
+  $("#capOk").onclick = () => {
+    state.sid = paySid(ids, Math.max(0, Math.round(Number($("#cap").value) || 0)));
+    history.replaceState({ ...history.state, sid: state.sid }, "", urlOf("pay", state.sid));
+    drawPay();
+  };
+  document.querySelectorAll("[data-pp]").forEach(b => b.onclick = async () => {
+    const ph = b.dataset.pp, v = b.dataset.v === "1", person = state.data.people.find(p => p.phone === ph);
+    const mine = state.data.sessions.filter(s => s.owner_phone === state.user.phone && person?.by[s.id]), old = mine.map(s => person.by[s.id].paid);
+    mine.forEach(s => person.by[s.id].paid = v); drawPay();
+    try { await api("setPaidMany", { ids, orderPhone: ph, paid: v }); }
+    catch (e) { mine.forEach((s, i) => person.by[s.id].paid = old[i]); drawPay(); toast(e.message); }
+  });
+  if ($("#claimAll")) $("#claimAll").onclick = async () => {
+    const b = $("#claimAll"); b.disabled = true;
+    try { await api("claimPaid", { ids: me.cells.filter(c => c && !c.paid && c.due > 0).map(c => c.s.id) }); toast("Đã báo người đặt ✓"); await viewPay(); }
+    catch (e) { toast(e.message); b.disabled = false; }
+  };
+}
+
+const start = fromHash();
+history.replaceState({ ...start, d: 0 }, "", urlOf(start.view, start.sid));
+show(start);
+</script>
+</body>
+</html>
