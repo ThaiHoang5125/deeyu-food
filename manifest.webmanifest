@@ -1,0 +1,15 @@
+{
+  "name": "Deeyu Food - Đặt cơm & nước",
+  "short_name": "Deeyu Food",
+  "description": "Đặt cơm & nước cho cả nhóm Youth Union DEE, chia tiền bằng VietQR.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f4ef",
+  "theme_color": "#1b0e5e",
+  "lang": "vi",
+  "icons": [
+    { "src": "img/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

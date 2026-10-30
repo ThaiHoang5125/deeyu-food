@@ -5,14 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f7f4ef">
 <title>Deeyu Food - Đặt cơm & nước</title>
+<link rel="icon" type="image/png" href="img/favicon-48.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  /* ===== TOKEN: màu (một màu nhấn đỏ Burgundy, còn lại trung tính ấm), bo góc, bóng, khoảng cách 4/8/12/16/24 ===== */
+  /* ===== TOKEN: màu (một màu nhấn xanh navy theo logo Youth Union DEE, còn lại trung tính ấm), bo góc, bóng, khoảng cách 4/8/12/16/24 ===== */
   :root {
     --bg:#f7f4ef; --card:#fff; --ink:#1f1a14; --ink2:#4a4037; --mute:#74685a; --line:#ece5dc; --line2:#d9cfc2; --sunk:#f3eee7;
-    --brand:#800020; --brand-h:#66001a; --brand2:#f9ecef; --brand3:#f2d6dd; --brand-rgb:128,0,32; --brand-l:#a8324e;
+    --brand:#1b0e5e; --brand-h:#120944; --brand2:#eeecf8; --brand3:#dcd8f0; --brand-rgb:27,14,94; --brand-l:#3f3291;
     --ok:#237a35; --ok2:#e7f6ea; --warn:#9a4a00; --warn2:#fff4e6; --bad:#c92a2a; --bad2:#ffeded; --info:#1864ab; --info2:#e7f3ff;
     --r-sm:10px; --r:14px; --r-lg:18px;
     --sh:0 1px 2px rgba(31,26,20,.04), 0 4px 14px rgba(31,26,20,.05);
@@ -39,9 +42,10 @@
   .iconbtn:disabled { opacity:.3; }
   .avatar { width:32px; height:32px; border-radius:50%; display:inline-grid; place-items:center; background:var(--brand2); color:var(--brand); font-weight:700; font-size:13px; flex:none; }
   .avatar.sm { width:28px; height:28px; font-size:12px; }
-  .avatar.a1 { background:var(--info2); color:var(--info); } .avatar.a2 { background:#f3f0ff; color:#5f3dc4; }
+  .avatar.a1 { background:var(--info2); color:var(--info); } .avatar.a2 { background:var(--warn2); color:var(--warn); }
   .avatar.a3 { background:#e6fcf5; color:#087f5b; } .avatar.a4 { background:#fff0f6; color:#a61e4d; }
   #userBadge { margin:0 4px; }
+  #brandLogo { width:36px; height:36px; margin-left:6px; flex:none; cursor:pointer; }
 
   /* ===== BỐ CỤC CHUNG ===== */
   main { max-width:640px; margin:0 auto; padding:12px 16px 136px; }
@@ -145,8 +149,8 @@
 
   /* ===== ĐĂNG NHẬP ===== */
   .hero { padding:36px 4px 20px; }
-  .logo { width:64px; height:64px; border-radius:20px; background:linear-gradient(135deg, var(--brand-l), var(--brand)); display:grid; place-items:center; color:#fff; box-shadow:0 10px 30px rgba(var(--brand-rgb),.3); margin-bottom:18px; }
-  .logo .ic { width:32px; height:32px; }
+  .logo { display:block; width:112px; height:112px; margin:0 0 16px -6px; }
+  .hero .org { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--brand); margin:0 0 4px; }
   .hero h2 { font-size:28px; font-weight:800; letter-spacing:-.02em; margin:0; }
   .hero p { color:var(--ink2); font-size:15.5px; margin:6px 0 0; max-width:320px; }
 
@@ -327,6 +331,7 @@
 </svg>
 <header>
   <button id="backBtn" class="iconbtn hidden" title="Quay lại" aria-label="Quay lại"><svg class="ic"><use href="#i-back"/></svg></button>
+  <img id="brandLogo" src="img/logo-256.png" alt="Youth Union DEE – về trang chủ" width="36" height="36">
   <h1 id="title">Deeyu Food</h1>
   <div id="navBtns" class="hidden">
     <button id="fwdBtn" class="hidden" aria-hidden="true" tabindex="-1"></button>
@@ -508,6 +513,8 @@ function render() {
   const d = history.state?.d ?? 0;
   $("#backBtn").disabled = d <= 0;
   $("#backBtn").classList.toggle("hidden", !u || d <= 0);
+  // logo đứng chỗ nút Quay lại: chỉ hiện khi không có nút đó (trang đăng nhập đã có logo lớn)
+  $("#brandLogo").classList.toggle("hidden", !u || d > 0);
   $("#fwdBtn").disabled = d >= maxD;
   $("#homeBtn").disabled = state.view === "home";
   $("#homeBtn").classList.toggle("hidden", state.view === "home");
@@ -526,6 +533,7 @@ $("#logoutBtn").onclick = async () => {
   store.clear(); state.user = null; go("login", null, true);
 };
 $("#backBtn").onclick = () => history.back();
+$("#brandLogo").onclick = () => { if (state.user && state.view !== "home") go("home", null, true); };
 $("#fwdBtn").onclick = () => history.forward();
 $("#homeBtn").onclick = () => go("home");
 
@@ -543,7 +551,8 @@ function viewLogin(stage = "", phone = "") {
   $("#title").textContent = "Deeyu Food";
   $("#app").innerHTML = `
     <div class="hero">
-      <div class="logo">${I("rice")}</div>
+      <img class="logo" src="img/logo-256.png" alt="Logo Youth Union DEE" width="112" height="112">
+      <div class="org">Youth Union DEE</div>
       <h2>${stage === "register" ? "Chào bạn mới!" : "Deeyu Food"}</h2>
       <p>${stage === "register" ? "Số này chưa có tài khoản – nhập tên để mọi người biết đơn của ai." : "Đặt cơm & nước cho cả nhóm, chia tiền gọn bằng VietQR."}</p>
     </div>
@@ -977,10 +986,10 @@ async function viewCreate() {
     api("listSessions", { history: true }).then(r => prev = r).catch(() => {}),
     loadPresets().then(r => presets = r.filter(p => p.type === kind)).catch(() => {})
   ]);
-  const oldSessions = prev.filter(s => !s.kind || s.kind === kind);   // chỉ phiên cùng loại (cơm / nước)
   const last = mem.get("bank", null) || prev.filter(s => s.owner_phone === state.user.phone && s.bank && s.account)
     .map(s => ({ bank: s.bank, account: s.account, acc_name: s.acc_name }))[0] || {};
-  const steps = [...(presets.length || oldSessions.length ? [["menu", "Menu"]] : []), ["order", "Đặt đơn"], ["pay", "Nhận tiền"]];
+  // Bước Menu chỉ có khi đã có quán cùng loại trong menu có sẵn (phiên cơm chỉ thấy quán cơm, phiên nước chỉ thấy quán nước)
+  const steps = [...(presets.length ? [["menu", "Menu"]] : []), ["order", "Đặt đơn"], ["pay", "Nhận tiền"]];
   const cr = {
     step: 0, max: 0, copy: "", place: DEFAULT_PLACE, deadline: mem.get("deadline", ""), subsidy: mem.get("subsidy_" + kind, ""),
     bank: last.bank ? bankLabel(last.bank) : "", account: last.account || "", accName: last.acc_name || "", prepay: mem.get("prepay", false),
@@ -1032,10 +1041,9 @@ async function viewCreate() {
     const key = steps[cr.step][0], lastStep = cr.step === steps.length - 1;
     const stepBar = stepsHtml(steps.map(s => s[1]), cr.step, i => i <= cr.max);
     const body = {
-      menu: () => `<label>Menu cho phiên này</label><select id="copy"><option value="">Không – tạo menu mới</option>
-        ${presets.length ? `<optgroup label="Menu có sẵn">${presets.map(p => `<option value="p:${esc(p.id)}" ${cr.copy === "p:" + p.id ? "selected" : ""}>${esc(p.shop)}</option>`).join("")}</optgroup>` : ""}
-        ${oldSessions.length ? `<optgroup label="Phiên cũ (Ngày - Tên quán)">${oldSessions.map(s => `<option value="s:${esc(s.id)}" ${cr.copy === "s:" + s.id ? "selected" : ""}>${sessionLabel(s)}</option>`).join("")}</optgroup>` : ""}</select>
-        <div class="mute" style="margin-top:6px">Chọn quán có sẵn hoặc chép menu từ phiên cũ; hoặc để trống rồi thêm món ở tab Thêm menu sau khi tạo phiên.</div>`,
+      menu: () => `<label for="copy">Quán ${KL} có sẵn</label><select id="copy"><option value="">Không – tạo menu mới</option>
+        <optgroup label="Quán ${KL} có sẵn">${presets.map(p => `<option value="p:${esc(p.id)}" ${cr.copy === "p:" + p.id ? "selected" : ""}>${esc(p.shop)}</option>`).join("")}</optgroup></select>
+        <div class="mute mt2">Chọn quán là menu được nạp vào phiên ngay. Chưa có quán cần đặt thì chọn "Không", tạo phiên rồi thêm món ở tab Menu (tick "Lưu quán này vào menu có sẵn" để lần sau chọn được).</div>`,
       order: () => `<label>Địa điểm lấy ${KL} ${R}</label>
         <input id="place" value="${esc(cr.place)}">
         <label>Giờ chốt đơn</label>
@@ -1804,13 +1812,6 @@ async function ocrImage(file, onProgress) {
 
 const manageNotes = type => state.pendingNote[type].length
   ? `<div class="callout">${I("info", "sm")}<div><b>Lưu ý món ${TYPE_INFO[type].label}</b><br>${state.pendingNote[type].map(esc).join("<br>")}</div></div>` : "";
-// Các quán đã đặt trước đây (mới nhất mỗi quán), để nhập nhanh menu cơm/nước
-let histRaw;
-async function shopHistory() {
-  histRaw ||= await api("listSessions", { history: true });
-  const seen = new Set();
-  return histRaw.filter(x => x.id !== state.sid && x.shop && !seen.has(x.shop.toLowerCase()) && seen.add(x.shop.toLowerCase()));
-}
 // Menu có sẵn: lưu ở tab Presets trong Sheet (thêm quán mới bằng nút "⭐ Lưu làm menu có sẵn", không cần sửa code)
 let presetsP;
 const loadPresets = () => presetsP ||= api("listPresets").catch(e => { presetsP = null; throw e; });
@@ -1849,7 +1850,7 @@ function menuCard(type) {
       <div data-preview="${type}"></div>
       <button class="ghost w100 mt3" data-mnext="${type}">Tiếp: kiểm tra & lưu ${I("right", "sm")}</button>`)}
       ${mpane(2, `<label>Tên quán</label>
-      <input data-shop="${type}" list="shopNames" autocomplete="off" maxlength="60" value="${esc(state.pendingNote.shops[type])}" placeholder="Tự lấy từ menu, hoặc gõ tên quán">
+      <input data-shop="${type}" list="shopNames-${type}" autocomplete="off" maxlength="60" value="${esc(state.pendingNote.shops[type])}" placeholder="Tự lấy từ menu, hoặc gõ tên quán">
       <div data-notes="${type}" style="margin-top:8px">${manageNotes(type)}</div>
       <div class="step">Danh sách món</div>
       <details class="dd" data-adv="${type}" open><summary data-count="${type}">${countText(menuText(type))}</summary><div class="ddbox">
@@ -1895,12 +1896,12 @@ async function savePresetFlow(shop, type, text, st) {
 // Ô ⭐ trong tab Thêm menu của phiên
 const addPreset = type => savePresetFlow($(`[data-shop="${type}"]`).value.trim(), type, $("#m-" + type).value,
   m => { const el = $(`[data-imp-status="${type}"]`); if (el) el.textContent = m; });
-// Gợi ý tên quán (ô Tên quán) từ các phiên đã đặt
+// Gợi ý tên quán (ô Tên quán): chỉ các quán có sẵn cùng loại – thẻ menu cơm gợi ý quán cơm, thẻ menu nước gợi ý quán nước
 function wireOld() {
-  shopHistory().then(list => {
-    const names = [...new Set(list.flatMap(x => x.shop.split(" / ")).map(x => x.trim()).filter(Boolean))];
-    const dl = $("#shopNames"); if (dl) dl.innerHTML = names.map(x => `<option value="${esc(x)}">`).join("");
-  }).catch(() => {});
+  loadPresets().then(list => ["com", "nuoc"].forEach(t => {
+    const dl = $("#shopNames-" + t);
+    if (dl) dl.innerHTML = list.filter(p => p.type === t).map(p => `<option value="${esc(p.shop)}">`).join("");
+  })).catch(() => {});
 }
 
 function wireImport(type) {
@@ -1988,7 +1989,7 @@ function drawManage() {
   const sec = {};
   sec.menu = `
     ${types.length > 1 ? `<div class="tabs">${tabBtn("com", I("rice", "sm") + "Menu cơm")}${tabBtn("nuoc", I("cup", "sm") + "Menu nước")}</div>` : ""}
-    <datalist id="shopNames"></datalist>
+    <datalist id="shopNames-com"></datalist><datalist id="shopNames-nuoc"></datalist>
     ${menuCard("com")}${menuCard("nuoc")}`;
   sec.settings = `
       <div class="card"><h2>${I("clock")}Giờ chốt đơn</h2>
