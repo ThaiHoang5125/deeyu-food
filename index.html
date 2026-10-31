@@ -935,10 +935,11 @@ function parseTlv(str) {
 }
 function parseQrPayment(text) {
   const t = String(text).trim();
+  let mai; try { mai = parseTlv(t)["38"]; } catch {}
+  const acc = mai && parseTlv(mai)["01"] && parseTlv(parseTlv(mai)["01"]);
+  if (acc && acc["00"] && acc["01"]) return { bank: (BANKS.find(x => x[2] === acc["00"]) || [""])[0], account: acc["01"], bin: acc["00"] };
   const momo = t.match(/^2\|99\|(\d{9,11})/) || t.match(/nhantien\.momo\.vn\/(\d{9,11})/);
   if (momo) return { bank: "MOMO", account: normPhone(momo[1]) || momo[1] };
-  const mai = parseTlv(t)["38"], acc = mai && parseTlv(mai)["01"] && parseTlv(parseTlv(mai)["01"]);
-  if (acc && acc["00"] && acc["01"]) return { bank: (BANKS.find(x => x[2] === acc["00"]) || [""])[0], account: acc["01"] };
   throw new Error("Không phải mã VietQR / MoMo – hãy nhập tay");
 }
 /* --- Tự sinh mã VietQR chuyển khoản (không phụ thuộc img.vietqr.io) --- */
@@ -1098,6 +1099,7 @@ async function viewCreate() {
         <datalist id="bankList">${BANKS.map(b => `<option value="${esc(b[0] + " - " + b[1])}">`).join("")}</datalist>
         <label>Số tài khoản ${R}</label>
         <input id="account" inputmode="numeric" placeholder="VD: 0123456789 (MoMo: số điện thoại)" value="${esc(cr.account)}">
+        <div class="mute" style="margin-top:4px">Nhận bằng MoMo? Nên mở MoMo → <b>QR Nhận tiền</b>, lưu ảnh mã đó rồi chọn ở ô ảnh QR phía trên – người trả quét được bằng MoMo và mọi app ngân hàng.</div>
         <label>Tên chủ tài khoản ${R}</label>
         <input id="accName" placeholder="VD: NGUYEN VAN A" value="${esc(cr.accName)}">
         <label class="chk mt3"><input type="checkbox" id="prepay" ${cr.prepay ? "checked" : ""}> Yêu cầu chuyển khoản trước để đặt</label>
@@ -1125,7 +1127,8 @@ async function viewCreate() {
         const r = parseQrPayment(await decodeQr(f));
         $("#bank").value = r.bank ? bankLabel(r.bank) : "";
         $("#account").value = r.account;
-        st(`Đã đọc QR: ${r.bank ? bankLabel(r.bank) : "(ngân hàng chưa nhận ra – hãy chọn ở ô Ngân hàng)"} · ${r.account}. Nhập tên chủ tài khoản rồi tạo phiên.`);
+        st(`Đã đọc QR: ${r.bank ? bankLabel(r.bank) : `(ngân hàng mã ${r.bin} chưa có trong danh sách – hãy chọn ở ô Ngân hàng)`} · ${r.account}. Nhập tên chủ tài khoản rồi tạo phiên.`
+          + (r.bank === "MOMO" ? " Lưu ý: mã này chỉ có SĐT, người trả phải chuyển tay trong MoMo. Nên dùng ảnh \"QR Nhận tiền\" mới trong app MoMo." : ""));
       } catch (err) { st("Lỗi: " + err.message); }
       e.target.value = "";
     };
@@ -1476,15 +1479,14 @@ function payBoxHtml(s, amount) {
   const kv = (l, v, copy) => `<div class="kv"><span>${l}</span><b>${esc(v)}${copy ? ` <button class="iconbtn" style="width:28px;height:28px;display:inline-grid;vertical-align:middle" data-copy="${esc(v)}" aria-label="Copy ${l}">${I("copy", "sm")}</button>` : ""}</b></div>`;
   const rows = kv("Người nhận", s.acc_name) + kv(s.bank === "MOMO" ? "Ví" : "Ngân hàng", bankLabel(s.bank)) + kv(s.bank === "MOMO" ? "Số MoMo" : "Số tài khoản", s.account, true) + kv("Nội dung", info, true);
   if (s.bank === "MOMO") {
-    // Link nhantien.momo.vn chỉ mở trang chủ app (không điền sẵn người nhận) -> dùng mã QR cá nhân MoMo
-    // "2|99|SĐT|Tên|email|0|0|số tiền": lưu ảnh rồi MoMo → Quét mã → chọn ảnh. Nút mở app thì copy sẵn số MoMo
+    // Chỉ có SĐT MoMo: mã QR "2|99|SĐT…" kiểu cũ bị MoMo chặn ("ví chưa xác thực"), link nhantien.momo.vn chỉ mở trang chủ
+    // -> copy số rồi mở MoMo. Người tạo phiên nên nhập bằng ảnh "QR Nhận tiền" của MoMo (thành VietQR, quét được bình thường)
     const phone = normPhone(s.account) || (/^[1-9]\d{8}$/.test(s.account) ? "0" + s.account : String(s.account));
-    const mq = `2|99|${phone}|${unaccent(s.acc_name || "").toUpperCase()}||0|0|${Math.round(amount)}`;
-    return `<div class="qrbox"><h2>Chuyển MoMo ${money(amount)}</h2><div class="mute">Chụp màn hình / lưu ảnh mã này, rồi trong MoMo chọn Quét mã → chọn ảnh – số tiền đã điền sẵn</div>
-      <img class="qr" src="" data-vq="${esc(mq)}" alt="Mã QR MoMo ${money(amount)}">${MOBILE_OS ? `<button class="ghost plain" data-saveqr>${I("down", "sm")} Lưu ảnh QR</button>` : ""}${rows}
+    return `<div class="qrbox"><h2>Chuyển MoMo ${money(amount)}</h2>${rows}
       <a class="btnlink" href="https://nhantien.momo.vn/${encodeURIComponent(phone)}/${Math.round(amount)}" target="_blank" rel="noopener" data-copy="${esc(phone)}">Copy số & mở MoMo</a>
-      <div class="mute center">Mở app xong: Chuyển tiền → dán số ${esc(phone)}</div></div>`;
+      <div class="mute center">Mở app xong: Chuyển tiền → dán số ${esc(phone)} → nhập ${money(amount)}</div></div>`;
   }
+
   const url = `https://img.vietqr.io/image/${encodeURIComponent(vqCode(s.bank))}-${encodeURIComponent(s.account)}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(info)}&accountName=${encodeURIComponent(s.acc_name)}`;
   const vq = buildVietQr(s.bank, String(s.account), amount, info);
   // Trên điện thoại: chỗ trống cho danh sách app ngân hàng (paintBankApps điền vào)
