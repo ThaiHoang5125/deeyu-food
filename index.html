@@ -992,7 +992,7 @@ const MOBILE_OS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? "ios" : /Andro
 let bankAppsLoading;
 function loadBankApps() {
   return bankAppsLoading ||= fetch(`https://api.vietqr.io/v2/${MOBILE_OS}-app-deeplinks`).then(r => r.json())
-    .then(d => (d.apps || []).sort((a, b) => (b.autofill - a.autofill) || (b.monthlyInstall - a.monthlyInstall)))
+    .then(d => (d.apps || []).filter((a, i, all) => all.findIndex(b => b.appId === a.appId) === i).sort((a, b) => (b.autofill - a.autofill) || (b.monthlyInstall - a.monthlyInstall)))
     .catch(e => { bankAppsLoading = null; throw e; });
 }
 async function paintBankApps() {
@@ -1006,9 +1006,9 @@ async function paintBankApps() {
     box.dataset.done = 1;
     const d = box.dataset, back = location.href.split("#")[0];
     const link = a => `<a href="https://dl.vietqr.io/pay?app=${encodeURIComponent(a.appId)}&ba=${encodeURIComponent(d.ba)}&am=${d.am}&tn=${encodeURIComponent(d.tn)}&bn=${encodeURIComponent(d.bn)}&url=${encodeURIComponent(back)}" data-app="${esc(a.appId)}" rel="noopener">
-      <img src="${esc(a.appLogo)}" alt="" loading="lazy">${esc(a.appName.replace(/ (SmartBanking|Digibank|Mobile Banking|Mobile)$/i, ""))}${a.autofill ? "" : "<small>chỉ mở app</small>"}</a>`;
+      <img src="${esc(a.appLogo)}" alt="" loading="lazy">${esc(a.appName.replace(/ (SmartBanking|Digibank|Mobile Banking|Mobile)$/i, ""))}${a.autofill ? "<small>điền sẵn</small>" : "<small>quét ảnh QR</small>"}</a>`;
     const N = 8;
-    box.innerHTML = `<div class="mute">Mở app ngân hàng của bạn – tự điền số tiền, nội dung</div><div class="grid">${apps.slice(0, N).map(link).join("")}</div>`
+    box.innerHTML = `<div class="mute">Mở app ngân hàng của bạn. App ghi <b>quét ảnh QR</b>: bấm <b>Lưu ảnh QR</b> bên dưới trước, rồi trong app chọn Quét QR → chọn ảnh</div><div class="grid">${apps.slice(0, N).map(link).join("")}</div>`
       + (apps.length > N ? `<button class="more">Xem thêm ${apps.length - N} app</button>` : "");
     box.querySelector(".more")?.addEventListener("click", e => { box.querySelector(".grid").insertAdjacentHTML("beforeend", apps.slice(N).map(link).join("")); e.target.remove(); });
     box.addEventListener("click", e => { const a = e.target.closest("a[data-app]"); if (a) mem.set("bankApp", a.dataset.app); });
@@ -1331,6 +1331,24 @@ function applyFilter() {
 }
 // Nút copy nhỏ (số tài khoản, nội dung chuyển khoản)
 document.addEventListener("click", e => { const b = e.target.closest("[data-copy]"); if (b) copyText(b.dataset.copy); });
+document.addEventListener("click", e => { const b = e.target.closest("[data-saveqr]"); if (b) saveQr(b.closest(".qrbox")?.querySelector("img.qr")); });
+// Lưu ảnh mã QR vào máy để app ngân hàng / MoMo quét từ ảnh: điện thoại dùng bảng chia sẻ (có "Lưu ảnh"), không được thì tải file
+async function saveQr(img) {
+  if (!img?.src) return toast("Mã QR chưa tải xong");
+  try {
+    const blob = await (await fetch(img.src)).blob();
+    const file = new File([blob], "deeyu-qr.png", { type: blob.type || "image/png" });
+    if (navigator.canShare?.({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); } catch (e) { if (e.name !== "AbortError") throw e; }
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast("Đã lưu ảnh QR ✓");
+  } catch { toast("Không lưu được – hãy nhấn giữ vào mã QR để lưu ảnh, hoặc chụp màn hình"); }
+}
 // −/+ một dòng trong giỏ: dùng chung cho danh sách món và giỏ ở thanh dưới
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-ld]");
@@ -1463,7 +1481,7 @@ function payBoxHtml(s, amount) {
     const phone = normPhone(s.account) || (/^[1-9]\d{8}$/.test(s.account) ? "0" + s.account : String(s.account));
     const mq = `2|99|${phone}|${unaccent(s.acc_name || "").toUpperCase()}||0|0|${Math.round(amount)}`;
     return `<div class="qrbox"><h2>Chuyển MoMo ${money(amount)}</h2><div class="mute">Chụp màn hình / lưu ảnh mã này, rồi trong MoMo chọn Quét mã → chọn ảnh – số tiền đã điền sẵn</div>
-      <img class="qr" src="" data-vq="${esc(mq)}" alt="Mã QR MoMo ${money(amount)}">${rows}
+      <img class="qr" src="" data-vq="${esc(mq)}" alt="Mã QR MoMo ${money(amount)}">${MOBILE_OS ? `<button class="ghost plain" data-saveqr>${I("down", "sm")} Lưu ảnh QR</button>` : ""}${rows}
       <a class="btnlink" href="https://nhantien.momo.vn/${encodeURIComponent(phone)}/${Math.round(amount)}" target="_blank" rel="noopener" data-copy="${esc(phone)}">Copy số & mở MoMo</a>
       <div class="mute center">Mở app xong: Chuyển tiền → dán số ${esc(phone)}</div></div>`;
   }
@@ -1472,7 +1490,7 @@ function payBoxHtml(s, amount) {
   // Trên điện thoại: chỗ trống cho danh sách app ngân hàng (paintBankApps điền vào)
   const apps = MOBILE_OS ? `<div class="bankapps" data-ba="${esc(`${s.account}@${vqCode(s.bank).toLowerCase()}`)}" data-am="${Math.round(amount)}" data-tn="${esc(unaccent(info).replace(/[^A-Za-z0-9 ]/g, "").trim().slice(0, 25))}" data-bn="${esc(unaccent(s.acc_name || ""))}"></div>` : "";
   return `<div class="qrbox"><h2>Chuyển khoản ${money(amount)}</h2>${apps}<div class="mute">${MOBILE_OS ? "Hoặc quét" : "Quét"} bằng app ngân hàng – số tiền và nội dung đã điền sẵn</div>
-    <img class="qr" src="${url}" ${vq ? `data-vq="${esc(vq)}"` : ""} alt="Mã QR chuyển khoản ${money(amount)}">${rows}</div>`;
+    <img class="qr" src="${url}" ${vq ? `data-vq="${esc(vq)}"` : ""} alt="Mã QR chuyển khoản ${money(amount)}">${MOBILE_OS ? `<button class="ghost plain" data-saveqr>${I("down", "sm")} Lưu ảnh QR</button>` : ""}${rows}</div>`;
 }
 function showPay() {
   const s = state.data.session, sub = cartSubsidy(), total = cartTotal() - sub;
