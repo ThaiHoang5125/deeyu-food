@@ -267,6 +267,12 @@
   pre.sum { background:#faf7f2; border:1px solid var(--line); border-radius:var(--r); padding:12px 14px; white-space:pre-wrap; font:14px/1.6 "Be Vietnam Pro", system-ui, sans-serif; color:var(--ink2); margin:8px 0 12px; }
   img.qr { width:220px; max-width:100%; display:block; margin:12px auto; border-radius:12px; }
   .qrbox { text-align:center; }
+  .bankapps { margin:4px 0 12px; }
+  .bankapps .grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:8px; }
+  .bankapps a { display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 2px; border:1px solid var(--line); border-radius:12px; color:inherit; text-decoration:none; font-size:11px; line-height:1.2; }
+  .bankapps a img { width:40px; height:40px; border-radius:10px; }
+  .bankapps a small { color:var(--mute); font-size:10px; }
+  .bankapps .more { margin-top:8px; background:none; border:0; color:var(--brand); font-weight:600; font-size:13px; }
   .kv { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:44px; padding:6px 0; border-top:1px solid var(--line); font-size:13.5px; text-align:left; }
   .kv span { color:var(--mute); flex:none; }
   .kv b { text-align:right; word-break:break-word; }
@@ -965,6 +971,7 @@ function loadQrGen() {
 }
 // Thay ảnh QR dự phòng (img.vietqr.io) bằng mã tự sinh; lỗi thì giữ ảnh dự phòng
 async function paintQrs() {
+  paintBankApps();
   const imgs = [...document.querySelectorAll("img.qr[data-vq]")];
   if (!imgs.length) return;
   try { await loadQrGen(); } catch { return; }
@@ -974,6 +981,37 @@ async function paintQrs() {
       img.src = q.createDataURL(8, 16);
       delete img.dataset.vq;
     } catch {}
+  });
+}
+
+// Mã ngân hàng theo VietQR (khác danh sách BANKS ở VietinBank)
+const vqCode = c => c === "CTG" ? "ICB" : c;
+// Nút mở thẳng app ngân hàng của người trả (deeplink dl.vietqr.io). App có autofill=1 tự điền người nhận/số tiền/nội dung,
+// app còn lại chỉ mở app -> vẫn cần quét QR. App bấm lần trước được đưa lên đầu.
+const MOBILE_OS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? "ios" : /Android/i.test(navigator.userAgent) ? "android" : "";
+let bankAppsLoading;
+function loadBankApps() {
+  return bankAppsLoading ||= fetch(`https://api.vietqr.io/v2/${MOBILE_OS}-app-deeplinks`).then(r => r.json())
+    .then(d => (d.apps || []).sort((a, b) => (b.autofill - a.autofill) || (b.monthlyInstall - a.monthlyInstall)))
+    .catch(e => { bankAppsLoading = null; throw e; });
+}
+async function paintBankApps() {
+  const boxes = [...document.querySelectorAll(".bankapps:not([data-done])")];
+  if (!boxes.length) return;
+  let apps;
+  try { apps = await loadBankApps(); } catch { return; }
+  const last = mem.get("bankApp", "");
+  apps = [...apps.filter(a => a.appId === last), ...apps.filter(a => a.appId !== last)];
+  boxes.forEach(box => {
+    box.dataset.done = 1;
+    const d = box.dataset, back = location.href.split("#")[0];
+    const link = a => `<a href="https://dl.vietqr.io/pay?app=${encodeURIComponent(a.appId)}&ba=${encodeURIComponent(d.ba)}&am=${d.am}&tn=${encodeURIComponent(d.tn)}&bn=${encodeURIComponent(d.bn)}&url=${encodeURIComponent(back)}" data-app="${esc(a.appId)}" rel="noopener">
+      <img src="${esc(a.appLogo)}" alt="" loading="lazy">${esc(a.appName.replace(/ (SmartBanking|Digibank|Mobile Banking|Mobile)$/i, ""))}${a.autofill ? "" : "<small>chỉ mở app</small>"}</a>`;
+    const N = 8;
+    box.innerHTML = `<div class="mute">Mở app ngân hàng của bạn – tự điền số tiền, nội dung</div><div class="grid">${apps.slice(0, N).map(link).join("")}</div>`
+      + (apps.length > N ? `<button class="more">Xem thêm ${apps.length - N} app</button>` : "");
+    box.querySelector(".more")?.addEventListener("click", e => { box.querySelector(".grid").insertAdjacentHTML("beforeend", apps.slice(N).map(link).join("")); e.target.remove(); });
+    box.addEventListener("click", e => { const a = e.target.closest("a[data-app]"); if (a) mem.set("bankApp", a.dataset.app); });
   });
 }
 
@@ -992,7 +1030,7 @@ async function viewCreate() {
   const steps = [...(presets.length ? [["menu", "Menu"]] : []), ["order", "Đặt đơn"], ["pay", "Nhận tiền"]];
   const cr = {
     step: 0, max: 0, copy: "", place: DEFAULT_PLACE, deadline: mem.get("deadline", ""), subsidy: mem.get("subsidy_" + kind, ""),
-    bank: last.bank ? bankLabel(last.bank) : "", account: last.account || "", accName: last.acc_name || "", prepay: mem.get("prepay", false),
+    bank: last.bank ? bankLabel(last.bank) : "", account: last.bank === "MOMO" && /^[1-9]\d{8}$/.test(last.account) ? "0" + last.account : last.account || "", accName: last.acc_name || "", prepay: mem.get("prepay", false),
     qrOk: !!(last.bank && last.account)   // đã có thông tin từ mã QR lần trước
   };
   const R = '<span class="req">*</span>';
@@ -1419,10 +1457,21 @@ function payBoxHtml(s, amount) {
   // Bảng thông tin nhận tiền, số tài khoản và nội dung có nút copy
   const kv = (l, v, copy) => `<div class="kv"><span>${l}</span><b>${esc(v)}${copy ? ` <button class="iconbtn" style="width:28px;height:28px;display:inline-grid;vertical-align:middle" data-copy="${esc(v)}" aria-label="Copy ${l}">${I("copy", "sm")}</button>` : ""}</b></div>`;
   const rows = kv("Người nhận", s.acc_name) + kv(s.bank === "MOMO" ? "Ví" : "Ngân hàng", bankLabel(s.bank)) + kv(s.bank === "MOMO" ? "Số MoMo" : "Số tài khoản", s.account, true) + kv("Nội dung", info, true);
-  if (s.bank === "MOMO") return `<h2>Chuyển MoMo ${money(amount)}</h2>${rows}<a class="btnlink" href="https://nhantien.momo.vn/${encodeURIComponent(s.account)}/${amount}" target="_blank" rel="noopener">Mở MoMo để trả ${money(amount)}</a>`;
-  const url = `https://img.vietqr.io/image/${encodeURIComponent(s.bank)}-${encodeURIComponent(s.account)}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(info)}&accountName=${encodeURIComponent(s.acc_name)}`;
+  if (s.bank === "MOMO") {
+    // Link nhantien.momo.vn chỉ mở trang chủ app (không điền sẵn người nhận) -> dùng mã QR cá nhân MoMo
+    // "2|99|SĐT|Tên|email|0|0|số tiền": lưu ảnh rồi MoMo → Quét mã → chọn ảnh. Nút mở app thì copy sẵn số MoMo
+    const phone = normPhone(s.account) || (/^[1-9]\d{8}$/.test(s.account) ? "0" + s.account : String(s.account));
+    const mq = `2|99|${phone}|${unaccent(s.acc_name || "").toUpperCase()}||0|0|${Math.round(amount)}`;
+    return `<div class="qrbox"><h2>Chuyển MoMo ${money(amount)}</h2><div class="mute">Chụp màn hình / lưu ảnh mã này, rồi trong MoMo chọn Quét mã → chọn ảnh – số tiền đã điền sẵn</div>
+      <img class="qr" src="" data-vq="${esc(mq)}" alt="Mã QR MoMo ${money(amount)}">${rows}
+      <a class="btnlink" href="https://nhantien.momo.vn/${encodeURIComponent(phone)}/${Math.round(amount)}" target="_blank" rel="noopener" data-copy="${esc(phone)}">Copy số & mở MoMo</a>
+      <div class="mute center">Mở app xong: Chuyển tiền → dán số ${esc(phone)}</div></div>`;
+  }
+  const url = `https://img.vietqr.io/image/${encodeURIComponent(vqCode(s.bank))}-${encodeURIComponent(s.account)}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(info)}&accountName=${encodeURIComponent(s.acc_name)}`;
   const vq = buildVietQr(s.bank, String(s.account), amount, info);
-  return `<div class="qrbox"><h2>Chuyển khoản ${money(amount)}</h2><div class="mute">Quét bằng app ngân hàng – số tiền và nội dung đã điền sẵn</div>
+  // Trên điện thoại: chỗ trống cho danh sách app ngân hàng (paintBankApps điền vào)
+  const apps = MOBILE_OS ? `<div class="bankapps" data-ba="${esc(`${s.account}@${vqCode(s.bank).toLowerCase()}`)}" data-am="${Math.round(amount)}" data-tn="${esc(unaccent(info).replace(/[^A-Za-z0-9 ]/g, "").trim().slice(0, 25))}" data-bn="${esc(unaccent(s.acc_name || ""))}"></div>` : "";
+  return `<div class="qrbox"><h2>Chuyển khoản ${money(amount)}</h2>${apps}<div class="mute">${MOBILE_OS ? "Hoặc quét" : "Quét"} bằng app ngân hàng – số tiền và nội dung đã điền sẵn</div>
     <img class="qr" src="${url}" ${vq ? `data-vq="${esc(vq)}"` : ""} alt="Mã QR chuyển khoản ${money(amount)}">${rows}</div>`;
 }
 function showPay() {
