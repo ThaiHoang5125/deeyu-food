@@ -807,6 +807,7 @@ function viewAddMenu() {
     body = `<div class="card"><h2>Xác nhận món ${TL}</h2>
       <div class="mute">Bỏ tích những dòng đọc sai. Chỉ các dòng còn tích mới được thêm.</div>
       ${am.warn ? `<div class="err">${esc(am.warn)}</div>` : ""}${html}
+      ${am.notes?.length ? `<div class="callout mt2">${I("info", "sm")}<div><b>Lưu ý tách riêng (lưu kèm quán)</b><br>${am.notes.map(esc).join("<br>")}</div></div>` : ""}
       <div class="mute" id="amCount" style="margin-top:8px"></div>
       <div class="row mt2"><button class="ghost plain" id="amBack">${I("back", "sm")} Nhập lại</button><button class="primary grow" id="amNext" style="margin:0">Tiếp: đặt tên ${I("right", "sm")}</button></div></div>`;
   } else body = am.done ? `<div class="card"><h2>✓ Đã thêm "${esc(am.shop)}"</h2><div class="mute">Quán đã nằm trong menu có sẵn. Khi tạo phiên, chọn ở bước Menu là thấy.</div>
@@ -827,7 +828,7 @@ function viewAddMenu() {
   const finish = (text, shop, warn) => {
     const r = analyzeMenu(text, am.type);
     am.rows = previewRows(r.items).map(x => ({ ...x, on: true }));
-    am.shop = am.shop || shop || r.shop || ""; am.warn = warn || "";
+    am.shop = am.shop || shop || r.shop || ""; am.warn = warn || ""; am.notes = r.notes;
     if (!am.rows.length) return status("Không đọc được món nào có giá – thử ảnh rõ hơn hoặc dán lại văn bản.");
     am.step = 2; viewAddMenu();
   };
@@ -883,7 +884,7 @@ function viewAddMenu() {
     $("#amSave").onclick = async () => {
       const b = $("#amSave"); b.disabled = true;
       const picked = am.rows.filter(r => r.on);
-      if (await savePresetFlow(($("#amShop").value || "").trim(), am.type, presetText(picked), status)) { am.shop = $("#amShop").value.trim(); am.done = true; viewAddMenu(); }
+      if (await savePresetFlow(($("#amShop").value || "").trim(), am.type, [...(am.notes || []).map(n => "! " + n), presetText(picked)].join("\n"), status)) { am.shop = $("#amShop").value.trim(); am.done = true; viewAddMenu(); }
       else b.disabled = false;
     };
   }
@@ -1059,7 +1060,7 @@ async function viewCreate() {
       });
       if (preset) {   // menu có sẵn: nạp vào phiên vừa tạo (cùng cách lưu menu ở tab Thêm menu)
         try {
-          const note = { com: [], nuoc: [], shops: { com: "", nuoc: "" } }; note.shops[kind] = preset.shop.slice(0, 60);
+          const note = { com: [], nuoc: [], shops: { com: "", nuoc: "" } }; note.shops[kind] = preset.shop.slice(0, 60); note[kind] = presetNotes(preset.text);
           await api("saveMenu", { id: r.id, items: parseMenu(preset.text, kind), note: JSON.stringify(note), shop: preset.shop.slice(0, 60) });
         } catch { toast("Đã tạo phiên nhưng chưa nạp được menu – vào tab Thêm menu để chọn lại"); }
       }
@@ -1650,9 +1651,11 @@ function parsePriceLine(l, zero = false) {
   const price = toPrice(m[2], m[3]);
   return price > 0 || (zero && price === 0) ? { name, price } : null;
 }
+const presetNotes = text => text.split("\n").map(l => l.trim()).filter(l => l[0] === "!").map(l => l.slice(1).trim()).filter(Boolean);
 function parseMenu(text, type) {
   let category = "";
   return text.split("\n").map(l => l.trim()).filter(Boolean).flatMap(l => {
+    if (l[0] === "!") return [];   // dòng lưu ý của quán ("! Tên món: ..."), không phải món
     if (l[0] === "#") { category = l.replace(/^#+\s*/, "").trim().slice(0, 60); return []; }
     const active = !/\(hết\)\s*$/i.test(l);
     l = l.replace(/\(hết\)\s*$/i, "").trim();
@@ -1692,6 +1695,15 @@ const DROP_RE = /đặt món|đặt hàng|hotline|sđt|số điện thoại|liê
 const EXTRA_RICE_RE = /cơm thêm|thêm cơm|phần cơm thêm/i;
 const isDropLine = l => PHONE_RE.test(l) || DROP_RE.test(l);
 
+const KEEP_PAREN_RE = /^(2XL|XL|S|M|L|\d+ml|hết|\d[\d.,]*\s*(k|đ|d|₫|vnđ|vnd)?)$/i;
+function pullParens(l) {
+  const notes = [], line = l.replace(/\(([^()]*)\)/g, (m, t) => {
+    t = t.trim();
+    if (!t || KEEP_PAREN_RE.test(t)) return m;
+    notes.push(t); return " ";
+  }).replace(/\s+/g, " ").trim();
+  return { line, notes };
+}
 // Phân tích văn bản menu (không đụng tới giao diện): món + size + giá, topping, tên quán đoán được, ghi chú
 function analyzeMenu(text, type) {
   const items = [], notes = [];
@@ -1719,7 +1731,12 @@ function analyzeMenu(text, type) {
       if (!state.pendingNote[type].includes(clean) && !notes.includes(clean)) notes.push(clean);
       return;
     }
-    const ps = parseMenuLine(l);
+    // Chữ trong ngoặc không phải size ("(tối đa 5 món)", "(chay)") tách khỏi tên món thành lưu ý riêng
+    const pulled = pullParens(l), ps = parseMenuLine(pulled.line);
+    if (ps.length && pulled.notes.length) {
+      const n = `${splitSize(ps[0].name).name}: ${pulled.notes.join(", ")}`;
+      if (!state.pendingNote[type].includes(n) && !notes.includes(n)) notes.push(n);
+    }
     if (ps.length) return ps.forEach(p => items.push({ ...p, cat }));
     if (isHeading(l)) { cat = cleanHeading(l); return; }
     skipped++;
@@ -1926,7 +1943,7 @@ async function savePresetFlow(shop, type, text, st) {
   catch (e) { return st("Lỗi: " + e.message), false; }
 }
 // Ô ⭐ trong tab Thêm menu của phiên
-const addPreset = type => savePresetFlow($(`[data-shop="${type}"]`).value.trim(), type, $("#m-" + type).value,
+const addPreset = type => savePresetFlow($(`[data-shop="${type}"]`).value.trim(), type, [...state.pendingNote[type].map(n => "! " + n), $("#m-" + type).value].join("\n"),
   m => { const el = $(`[data-imp-status="${type}"]`); if (el) el.textContent = m; });
 // Gợi ý tên quán (ô Tên quán): chỉ các quán có sẵn cùng loại – thẻ menu cơm gợi ý quán cơm, thẻ menu nước gợi ý quán nước
 function wireOld() {
