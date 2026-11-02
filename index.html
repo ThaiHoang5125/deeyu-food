@@ -1673,9 +1673,12 @@ const TYPE_INFO = {
 };
 
 // OCR hay tách giá ra dòng riêng -> ghép lại với dòng tên phía trên
+// Chữ dán từ Facebook: "[#25k](https://…)/phần." -> "25k"; bỏ dấu chấm cuối dòng
+const cleanPasted = l => l.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/#(?=\d)/g, "")
+  .replace(/(\d\s*(?:k|đ|d|₫|vnđ|vnd)?)\s*\/\s*(?:phần|phan|suất|suat|ly|hộp|người)\b/giu, "$1").replace(/[.\s]+$/, "").trim();
 function joinPriceLines(text) {
   const out = [];
-  text.split("\n").map(l => l.trim()).filter(Boolean).forEach(l => {
+  text.split("\n").map(cleanPasted).filter(Boolean).forEach(l => {
     const priceOnly = /^[\d.,]+\s*(k|đ|d|₫|vnđ|vnd)?$/i.test(l);
     if (priceOnly && out.length && !/\d\s*(k|đ|d|₫|vnđ|vnd)?$/i.test(out[out.length - 1])) out[out.length - 1] += " " + l;
     else out.push(l);
@@ -1713,16 +1716,18 @@ function analyzeMenu(text, type) {
   const isTitle = l => !isDropLine(l) && !NOTE_RE.test(l) && l[0] !== "#" && isHeading(l);
   if (!state.pendingNote.shops[type] && all.length && isTitle(all[0]) && all.filter(isTitle).length >= 2) shop = cleanHeading(all.shift());
   const hasCombo = all.some(l => COMBO_RE.test(l) && !isDropLine(l) && parseMenuLine(l).length);
+  let seenCombo = false;
   all.forEach(l => {
     if (l[0] === "#") { cat = cleanHeading(l); return; }
     if (!/[\p{L}\p{N}]/u.test(l)) return;   // dòng kẻ ngang "———"
     if (hasCombo && !parseMenuLine(l).length && !isDropLine(l) && !NOTE_RE.test(l)) {
-      const o = OPT_RE.exec(l), name = o && cleanName(o[1]);
-      if (name) return items.push({ name, price: 0, cat: OPT_CAT });
+      const o = OPT_RE.exec(l), name = cleanName(o ? o[1] : l);   // đánh số "1. Gà" hoặc không đánh số (các dòng sau dòng combo)
+      if (name && (o || seenCombo)) return items.push({ name, price: 0, cat: OPT_CAT });
     }
     if (hasCombo && COMBO_RE.test(l) && !isDropLine(l)) {
       const ps = parseMenuLine(l);
-      if (ps.length) return ps.forEach(p => items.push({ ...p, name: /^combo/i.test(p.name) ? p.name : "Combo " + p.name, cat: COMBO_CAT }));
+      if (ps.length) seenCombo = true;
+      if (ps.length) return ps.forEach(p => items.push({ ...p, name: /^(combo|cơm)/i.test(p.name) ? p.name : "Combo " + p.name, cat: COMBO_CAT }));
     }
     const isExtraRice = type === "com" && EXTRA_RICE_RE.test(l) && parseMenuLine(l).length;
     if (!isExtraRice && isDropLine(l)) return dropped++;
