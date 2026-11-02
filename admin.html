@@ -85,6 +85,9 @@
   .person .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .person .row b { flex:1 1 140px; }
   .line { font-size:13.5px; color:var(--ink2); margin:3px 0 0 0; }
+  .grp { margin-bottom:18px; }
+  .grp-h { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:2px 4px 8px; }
+  .grow { flex:1 1 260px; }
   .foot { text-align:center; color:var(--mute); font-size:12.5px; margin-top:16px; }
   .hidden { display:none !important; }
   @media (max-width:640px) { th, td { padding:9px 10px; } header h1 small { display:none; } }
@@ -143,6 +146,23 @@ function table(cols, rows, empty = "Không có dữ liệu") {
     ${rows.map(r => `<tr>${cols.map(c => `<td class="${c.num ? "num" : ""} ${c.wide ? "wrap2" : ""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 
+// Bảng chia theo phiên: mỗi phiên một khối (tiêu đề + bảng); phiên mới nhất trước, dòng của phiên đã xóa gom xuống cuối
+function bySession(rows, cols, by, extra) {
+  if (!rows.length) return `<div class="card"><div class="empty">Không có dữ liệu</div></div>`;
+  const groups = {};
+  rows.forEach(r => (groups[r.session_id] ||= []).push(r));
+  const ids = [...Object.keys(by).filter(id => groups[id]), ...Object.keys(groups).filter(id => !by[id])];
+  return ids.map(id => {
+    const b = by[id], s = b && b.s, list = groups[id];
+    const head = s ? `<b>${esc(s.shop || "(chưa đặt tên quán)")}</b> <span class="tag brand">${KIND[s.kind] || "Cơm + nước"}</span> <span class="tag ${s.status === "open" ? "ok" : ""}">${s.status === "open" ? "Đang mở" : "Đã chốt"}</span>
+        <span class="mute small">${esc(s.owner_name)} · ${when(s.created)} · #${esc(id)}</span>`
+      : `<b>Phiên đã xóa</b> <span class="mute small">#${esc(id)}</span>`;
+    return `<div class="grp"><div class="grp-h"><div class="grow">${head}</div><span class="mute small">${extra(list, b)}</span></div>
+      <div class="card scroll"><table><thead><tr>${cols.map(c => `<th class="${c.num ? "num" : ""}">${c.h}</th>`).join("")}</tr></thead><tbody>
+      ${list.map(r => `<tr>${cols.map(c => `<td class="${c.num ? "num" : ""} ${c.wide ? "wrap2" : ""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
+  }).join("");
+}
+
 function view(by) {
   const d = S.data, q = S.q.trim().toLowerCase();
   if (S.tab === "sessions") {
@@ -165,15 +185,18 @@ function view(by) {
   }
   if (S.tab === "members") return table([{ h: "Tên", f: r => `<b>${esc(r.name)}</b>` }, { h: "SĐT", f: r => esc(r.phone) }, { h: "Tham gia", f: r => when(r.created) },
     { h: "Ngân hàng nhận tiền", f: r => r.bank ? `${esc(r.bank)} ${esc(r.account)} <span class="mute">${esc(r.acc_name)}</span>` : `<span class="mute">—</span>` }], d.members.filter(r => match(r, q)));
-  if (S.tab === "orders") return table([{ h: "Thời gian", f: r => when(r.time) }, { h: "Người đặt", f: r => `<b>${esc(r.name)}</b><br><span class="mute small">${esc(r.phone)}</span>` },
+  if (S.tab === "orders") return bySession(d.orders.filter(r => match(r, q)).slice().reverse(), [{ h: "Thời gian", f: r => when(r.time) }, { h: "Người đặt", f: r => `<b>${esc(r.name)}</b><br><span class="mute small">${esc(r.phone)}</span>` },
     { h: "Món", wide: true, f: r => `${esc(oLabel(r))}${r.note ? `<br><span class="mute small">${esc(r.note)}</span>` : ""}` }, { h: "SL", num: true, f: r => r.qty },
-    { h: "Đơn giá", num: true, f: r => vnd(r.price) }, { h: "Thành tiền", num: true, f: r => `<b>${vnd(r.price * r.qty)}</b>` }, { h: "Phiên", f: r => `<span class="mute">#${esc(r.session_id)}</span>` }],
-    d.orders.filter(r => match(r, q)));
+    { h: "Đơn giá", num: true, f: r => vnd(r.price) }, { h: "Thành tiền", num: true, f: r => `<b>${vnd(r.price * r.qty)}</b>` }], by,
+    list => `${new Set(list.map(r => r.phone)).size} người · ${list.reduce((t, r) => t + r.qty, 0)} phần · ${vnd(list.reduce((t, r) => t + r.price * r.qty, 0))}`);
   if (S.tab === "payments") {
-    const who = Object.fromEntries(d.members.map(m => [m.phone, m.name])), shop = Object.fromEntries(d.sessions.map(s => [s.id, s.shop]));
-    return table([{ h: "Người", f: r => `<b>${esc(who[r.phone] || r.phone)}</b><br><span class="mute small">${esc(r.phone)}</span>` }, { h: "Phiên", f: r => `${esc(shop[r.session_id] || "")} <span class="mute">#${esc(r.session_id)}</span>` },
-      { h: "Trạng thái", f: r => r.paid ? `<span class="tag ok">Đã trả</span>` : `<span class="tag info">Báo đã chuyển</span>` }, { h: "Cập nhật", f: r => when(r.updated) }],
-      d.payments.filter(r => match({ ...r, n: who[r.phone], s: shop[r.session_id] }, q)));
+    const who = Object.fromEntries(d.members.map(m => [m.phone, m.name]));
+    return bySession(d.payments.filter(r => match({ ...r, n: who[r.phone], s: by[r.session_id]?.s.shop }, q)), [
+      { h: "Người", f: r => `<b>${esc(who[r.phone] || r.phone)}</b><br><span class="mute small">${esc(r.phone)}</span>` },
+      { h: "Trạng thái", f: r => r.paid ? `<span class="tag ok">Đã trả</span>` : `<span class="tag info">Báo đã chuyển</span>` },
+      { h: "Số tiền", num: true, f: r => { const p = by[r.session_id]?.people[r.phone]; return p ? vnd(p.due) : "—"; } },
+      { h: "Cập nhật", f: r => when(r.updated) }], by,
+      (list, b) => `${list.filter(r => r.paid).length} đã trả · ${list.filter(r => !r.paid).length} báo chuyển${b ? ` · còn ${Object.values(b.people).filter(p => !p.pay.paid).length}/${Object.keys(b.people).length} người chưa trả` : ""}`);
   }
   if (S.tab === "notices") {
     const who = Object.fromEntries(d.members.map(m => [m.phone, m.name]));
