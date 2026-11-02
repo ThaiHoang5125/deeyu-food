@@ -1020,15 +1020,15 @@ async function paintBankApps() {
 async function viewCreate() {
   const kind = state.newKind === "nuoc" ? "nuoc" : "com", KL = TYPE_INFO[kind].label;
   $("#title").textContent = `Tạo phiên đặt ${KL}`;
-  let prev = [], presets = [];
+  let prev = [], presets = [], presetErr = "";
   await Promise.all([
     api("listSessions", { history: true }).then(r => prev = r).catch(() => {}),
-    loadPresets().then(r => presets = r.filter(p => p.type === kind)).catch(() => {})
+    loadPresets().then(r => presets = r.filter(p => p.type === kind)).catch(e => presetErr = e.message)
   ]);
   const last = mem.get("bank", null) || prev.filter(s => s.owner_phone === state.user.phone && s.bank && s.account)
     .map(s => ({ bank: s.bank, account: s.account, acc_name: s.acc_name }))[0] || {};
-  // Bước Menu chỉ có khi đã có quán cùng loại trong menu có sẵn (phiên cơm chỉ thấy quán cơm, phiên nước chỉ thấy quán nước)
-  const steps = [...(presets.length ? [["menu", "Menu"]] : []), ["order", "Đặt đơn"], ["pay", "Nhận tiền"]];
+  // Bước Menu luôn hiện (phiên cơm chỉ thấy quán cơm, phiên nước chỉ thấy quán nước)
+  const steps = [["menu", "Menu"], ["order", "Đặt đơn"], ["pay", "Nhận tiền"]];
   const cr = {
     step: 0, max: 0, copy: "", place: DEFAULT_PLACE, deadline: mem.get("deadline", ""), subsidy: mem.get("subsidy_" + kind, ""),
     bank: last.bank ? bankLabel(last.bank) : "", account: last.bank === "MOMO" && /^[1-9]\d{8}$/.test(last.account) ? "0" + last.account : last.account || "", accName: last.acc_name || "", prepay: mem.get("prepay", false),
@@ -1080,7 +1080,7 @@ async function viewCreate() {
     const key = steps[cr.step][0], lastStep = cr.step === steps.length - 1;
     const stepBar = stepsHtml(steps.map(s => s[1]), cr.step, i => i <= cr.max);
     const body = {
-      menu: () => `<label for="copy">Quán ${KL} có sẵn</label><select id="copy"><option value="">Không – tạo menu mới</option>
+      menu: () => !presets.length ? `<div class="mute">${presetErr ? "Không tải được danh sách menu có sẵn: " + esc(presetErr) + ". Bạn vẫn có thể bấm Tiếp để tạo menu mới." : `Chưa có quán ${KL} nào trong menu có sẵn. Bấm Tiếp, tạo phiên rồi thêm món ở tab Menu (tick "Lưu quán này vào menu có sẵn" để lần sau chọn được).`}</div>` : `<label for="copy">Quán ${KL} có sẵn</label><select id="copy"><option value="">Không – tạo menu mới</option>
         <optgroup label="Quán ${KL} có sẵn">${presets.map(p => `<option value="p:${esc(p.id)}" ${cr.copy === "p:" + p.id ? "selected" : ""}>${esc(p.shop)}</option>`).join("")}</optgroup></select>
         <div class="mute mt2">Chọn quán là menu được nạp vào phiên ngay. Chưa có quán cần đặt thì chọn "Không", tạo phiên rồi thêm món ở tab Menu (tick "Lưu quán này vào menu có sẵn" để lần sau chọn được).</div>`,
       order: () => `<label>Địa điểm lấy ${KL} ${R}</label>
