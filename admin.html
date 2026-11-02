@@ -44,7 +44,12 @@
   .stat { background:#fff; border-radius:var(--r); box-shadow:var(--sh); padding:14px 16px; }
   .stat span { display:block; font-size:12.5px; color:var(--mute); font-weight:500; }
   .stat b { font-size:24px; letter-spacing:-.5px; }
-  .stat.bad b { color:var(--bad); } .stat.ok b { color:var(--ok); }
+  .stat.bad b { color:var(--bad); } .stat.ok b { color:var(--ok); } .stat.info b { color:var(--info); }
+  .stat small { display:inline; font-weight:400; font-size:11.5px; }
+  .money { padding:14px 16px; margin-bottom:18px; overflow:visible; }
+  .money h2 { margin:0; font-size:15px; } .money h2 small { font-weight:500; font-size:12.5px; color:var(--mute); margin-left:6px; }
+  .stats.flat { margin:10px 0 0; } .stats.flat .stat { box-shadow:none; background:var(--sunk); }
+  .money .prog { margin-top:12px; }
 
   .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
   .tabs { display:flex; gap:4px; background:var(--sunk); padding:4px; border-radius:13px; overflow-x:auto; flex:1 1 auto; scrollbar-width:none; }
@@ -120,7 +125,7 @@ function model() {
   d.payments.forEach(p => pay[p.session_id + "|" + p.phone] = p);
   const menus = Object.fromEntries(d.menus.map(m => [m.session_id, m.n]));
   const by = {};
-  d.sessions.forEach(s => by[s.id] = { s, people: {}, qty: 0, due: 0, got: 0, menu: menus[s.id] || 0 });
+  d.sessions.forEach(s => by[s.id] = { s, people: {}, qty: 0, due: 0, got: 0, claimed: 0, unpaidPeople: 0, claimedPeople: 0, menu: menus[s.id] || 0 });
   d.orders.forEach(o => {
     const b = by[o.session_id]; if (!b) return;
     const p = b.people[o.phone] ||= { phone: o.phone, name: o.name, rows: [], amount: 0, portions: 0, pay: pay[o.session_id + "|" + o.phone] || {} };
@@ -129,7 +134,10 @@ function model() {
   });
   Object.values(by).forEach(b => Object.values(b.people).forEach(p => {
     p.due = p.amount - Math.min(p.amount, (b.s.subsidy || 0) * p.portions);
-    b.due += p.due; if (p.pay.paid) b.got += p.due;
+    b.due += p.due;
+    if (p.pay.paid) b.got += p.due;
+    else if (p.pay.claimed) { b.claimed += p.due; b.claimedPeople++; }
+    else b.unpaidPeople++;
   }));
   return by;
 }
@@ -184,7 +192,8 @@ function view(by) {
           <span class="tag ${s.status === "open" ? "ok" : ""}">${s.status === "open" ? "Đang mở" : "Đã chốt"}</span>${s.prepay ? `<span class="tag warn">Trả trước</span>` : ""}` : ""}
           <span class="mute small">${open ? "▾" : "▸"}</span></div>
         <div class="meta">${s ? `<span>${esc(s.owner_name)} · ${esc(s.owner_phone)}</span><span>${when(s.created)}</span>` : ""}<span>${people.length} người · ${b.qty} phần</span>
-          <span>Tổng ${vnd(b.due)}</span>${s ? `<span style="color:${b.got >= b.due && b.due ? "var(--ok)" : "var(--bad)"}">${b.due ? `Đã thu ${vnd(b.got)} (${pct}%)` : "Chưa có đơn"}</span>` : ""}
+          ${s ? (b.due ? `<span>Cần thu ${vnd(b.due)}</span><span style="color:var(--ok)">Đã thu ${vnd(b.got)} (${pct}%)</span>
+            <span style="color:${b.due > b.got ? (s.status === "open" ? "var(--ink2)" : "var(--bad)") : "var(--ok)"}">${b.due > b.got ? `Còn ${vnd(b.due - b.got)}${b.claimed ? ` (${vnd(b.claimed)} chờ xác nhận)` : ""}` : "✓ Đã đủ"}</span>` : `<span>Chưa có đơn</span>`) : `<span>Tổng ${vnd(b.due)}</span>`}
           ${s && s.subsidy ? `<span>Hỗ trợ ${vnd(s.subsidy)}/suất</span>` : ""}${s ? `<span>Menu ${b.menu} món</span>` : ""}<span class="mute">#${esc(b.id)}</span></div>
         ${b.due && s ? `<div class="prog"><i style="width:${pct}%"></i></div>` : ""}
         ${open ? detailHtml(b) : ""}</div>`;
@@ -240,13 +249,19 @@ function draw() {
   }
   const d = S.data, by = model(), all = Object.values(by);
   if (!S.inited) { S.inited = true; if (d.sessions[0]) S.open.add(d.sessions[0].id); }
-  const need = all.reduce((t, b) => t + b.due, 0), got = all.reduce((t, b) => t + b.got, 0);
+  const sum = k => all.reduce((t, b) => t + b[k], 0);
+  const need = sum("due"), got = sum("got"), claimed = sum("claimed"), todo = need - got - claimed;
+  const unpaidP = sum("unpaidPeople"), claimedP = sum("claimedPeople"), pct = need ? Math.round(got / need * 100) : 0;
   root.innerHTML = `<header><div class="in"><img src="img/logo-256.png" alt=""><h1>Deeyu Food<small>Dữ liệu D1 · cập nhật ${when(d.at)}</small></h1>
       <button class="btn" id="csv">Tải CSV</button><button class="btn primary" id="refresh">Làm mới</button><button class="btn" id="out">Thoát</button></div></header>
     <div class="wrap">
       <div class="stats"><div class="stat"><span>Thành viên</span><b>${d.members.length}</b></div><div class="stat"><span>Phiên</span><b>${d.sessions.length}</b></div>
-        <div class="stat"><span>Dòng đơn</span><b>${d.orders.length}</b></div><div class="stat ok"><span>Đã thu</span><b>${vnd(got)}</b></div>
-        <div class="stat ${need - got > 0 ? "bad" : ""}"><span>Chưa thu</span><b>${vnd(need - got)}</b></div></div>
+        <div class="stat"><span>Dòng đơn</span><b>${d.orders.length}</b></div></div>
+      <div class="card money"><h2>Thu tiền <small>${unpaidP + claimedP ? `${unpaidP + claimedP} người chưa được xác nhận trả` : "mọi người đã trả đủ"}</small></h2>
+        <div class="stats flat"><div class="stat"><span>Cần thu</span><b>${vnd(need)}</b></div><div class="stat ok"><span>Đã thu</span><b>${vnd(got)}</b></div>
+          <div class="stat info"><span>Chờ xác nhận <small>${claimedP} người báo đã chuyển</small></span><b>${vnd(claimed)}</b></div>
+          <div class="stat ${todo > 0 ? "bad" : ""}"><span>Chưa chuyển <small>${unpaidP} người</small></span><b>${vnd(todo)}</b></div></div>
+        <div class="prog"><i style="width:${pct}%"></i></div></div>
       <div class="bar"><div class="tabs">${TABS.map(([k, l, n]) => `<button data-t="${k}" class="${S.tab === k ? "on" : ""}">${l}<span class="n">${n(d)}</span></button>`).join("")}</div>
         ${S.tab === "sessions" ? `<button class="btn" id="openAll">Mở hết</button><button class="btn" id="closeAll">Thu gọn</button>` : ""}
         <div class="search"><input id="q" type="search" placeholder="Tìm theo tên, SĐT, món, quán…" value="${esc(S.q)}"></div></div>
