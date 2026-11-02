@@ -608,7 +608,7 @@ async function viewHome() {
     <div id="list">${skel(2)}</div>
     <h2 class="sect">Công cụ</h2>
     <div class="card links">
-      <button id="tAdd"><span class="li">${I("file")}</span><span class="tx">Thêm menu quán<span>AI đọc ảnh, văn bản hoặc Excel</span></span>${I("right", "sm")}</button>
+      <button id="tAdd"><span class="li">${I("file")}</span><span class="tx">Thêm menu quán<span>Đọc ảnh, văn bản hoặc Excel</span></span>${I("right", "sm")}</button>
       <button id="tStats"><span class="li">${I("chart")}</span><span class="tx">Thống kê thu chi<span id="tStatsN">Ai còn nợ, bạn còn nợ ai</span></span>${I("right", "sm")}</button>
       <button id="tPay"><span class="li">${I("table")}</span><span class="tx">Bảng thanh toán nhiều bữa<span>Gộp nhiều bữa, chuyển khoản một lần</span></span>${I("right", "sm")}</button>
     </div>`;
@@ -716,7 +716,7 @@ async function viewStats() {
 }
 
 /* ===== THÊM MENU (từ trang chủ) ===== */
-// 3 bước: ① nhập ảnh / văn bản cho AI đọc → ② xác nhận món → ③ đặt tên quán và thêm vào menu có sẵn (Presets)
+// 3 bước: ① nhập ảnh / văn bản để app đọc → ② xác nhận món → ③ đặt tên quán và thêm vào menu có sẵn (Presets)
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("TIMEOUT: quá " + ms / 1000 + " giây")), ms))]);
 const presetText = rows => groupsText(rows.reduce((groups, r) => {
   let g = groups.find(x => x.cat === r.cat); if (!g) groups.push(g = { cat: r.cat, lines: [] });
@@ -791,11 +791,11 @@ function viewAddMenu() {
   if (am.step === 1) body = `<div class="card"><h2>Nhập menu</h2>
       <div class="tabs sm">${["com", "nuoc"].map(t => `<button data-type="${t}" class="${am.type === t ? "on" : ""}">${TYPE_INFO[t].icon} Menu ${TYPE_INFO[t].label}</button>`).join("")}</div>
       <div class="tabs sm">${[["img", I("image", "sm") + "Ảnh"], ["text", I("text", "sm") + "Dán chữ"], ["xlsx", I("table", "sm") + "Excel"]].map(([k, l]) => `<button data-src2="${k}" class="${am.src === k ? "on" : ""}">${l}</button>`).join("")}</div>
-      ${am.src === "img" ? `<input type="file" id="amImg" accept="image/*"><div class="mute" style="margin-top:4px">Chọn ảnh chụp menu – AI đọc món và giá (tối đa khoảng 15 giây).</div>`
+      ${am.src === "img" ? `<input type="file" id="amImg" accept="image/*"><div class="mute" style="margin-top:4px">Chọn ảnh chụp menu – app tự nhận dạng chữ để lấy món và giá (lần đầu khoảng 30 giây).</div>`
         : am.src === "xlsx" ? `<input type="file" id="amXlsx" accept=".xlsx,.xls,.csv"><div class="mute" style="margin-top:4px">Chọn file Excel (.xlsx, .xls, .csv), đọc sheet đầu tiên. Hàng đầu là tiêu đề: <b>Mục</b> (tuỳ chọn), <b>Tên món</b>, <b>Size</b> (tuỳ chọn), <b>Giá</b> – hoặc các cột giá theo size <b>S / M / L</b>. Giá 25 hiểu là 25K.</div>`
         : `<textarea id="amText" placeholder="Mỗi dòng một món có giá, VD:\n${esc(TYPE_INFO[am.type].eg)}">${esc(am.text)}</textarea>
-           <button class="primary" id="amRead">AI đọc văn bản</button>
-           <div class="mute" style="margin-top:4px">Có thể Ctrl+V ảnh vào ô này để AI đọc ảnh.</div>`}
+           <button class="primary" id="amRead">Đọc văn bản</button>
+           <div class="mute" style="margin-top:4px">Có thể Ctrl+V ảnh vào ô này để đọc ảnh.</div>`}
       <div class="mute" id="amStatus" style="margin-top:8px;white-space:pre-line">${has ? `Đã có kết quả đọc trước đó (${am.rows.length} dòng) – bấm bước 2 để xem lại.` : ""}</div></div>`;
   else if (am.step === 2) {
     let html = "", last = null;
@@ -805,7 +805,7 @@ function viewAddMenu() {
       html += `<label class="chk"><input type="checkbox" data-row="${i}" ${r.on ? "checked" : ""}> <span><b>${esc(r.name)}</b> <span class="mute">${esc(price(r))}</span></span></label>`;
     });
     body = `<div class="card"><h2>Xác nhận món ${TL}</h2>
-      <div class="mute">Bỏ tích những dòng AI đọc sai. Chỉ các dòng còn tích mới được thêm.</div>
+      <div class="mute">Bỏ tích những dòng đọc sai. Chỉ các dòng còn tích mới được thêm.</div>
       ${am.warn ? `<div class="err">${esc(am.warn)}</div>` : ""}${html}
       <div class="mute" id="amCount" style="margin-top:8px"></div>
       <div class="row mt2"><button class="ghost plain" id="amBack">${I("back", "sm")} Nhập lại</button><button class="primary grow" id="amNext" style="margin:0">Tiếp: đặt tên ${I("right", "sm")}</button></div></div>`;
@@ -815,7 +815,7 @@ function viewAddMenu() {
       <label>Tên quán</label><input id="amShop" list="amShops" maxlength="60" autocomplete="off" value="${esc(am.shop)}" placeholder="VD: Cơm gà Nhà Lá">
       <datalist id="amShops"></datalist>
       <div class="mute" id="amExist" style="margin-top:6px"></div>
-      <div class="mute" style="margin-top:6px">${am.rows.filter(r => r.on).length} dòng món ${TL} sẽ được thêm. App tự kiểm tra trùng quán bằng AI trước khi lưu.</div>
+      <div class="mute" style="margin-top:6px">${am.rows.filter(r => r.on).length} dòng món ${TL} sẽ được thêm. App tự kiểm tra trùng quán trước khi lưu.</div>
       <div class="mute" id="amStatus" style="margin-top:6px"></div>
       <div class="row mt2"><button class="ghost plain" id="amBack2">${I("back", "sm")} Quay lại</button><button class="primary grow" id="amSave" style="margin:0">${I("plus", "sm")} Thêm menu</button></div></div>`;
   $("#app").innerHTML = stepBar + body;
@@ -833,15 +833,15 @@ function viewAddMenu() {
   };
   const readImage = async file => {
     const t0 = Date.now(); let prog = "";
-    const tick = setInterval(() => status(`Đang đọc ảnh bằng AI… ${Math.round((Date.now() - t0) / 1000)}s ${prog}`), 500);
+    const tick = setInterval(() => status(`Đang đọc ảnh… ${Math.round((Date.now() - t0) / 1000)}s ${prog}`), 500);
     state.busy = true;
     try {
-      const ai = await aiReadMenu(file, m => prog = "– " + m);
+      const text = await ocrImage(file, m => prog = `– ${m.status}${m.progress ? " " + Math.round(m.progress * 100) + "%" : ""}`);
       clearInterval(tick); state.busy = false;
-      finish(ai.text, ai.shop, ai.late ? `⚠ ${ai.late} phần ảnh chưa đọc kịp trong 15 giây – thiếu món thì quay lại chọn ảnh khác.` : "");
+      finish(text, "", "Ảnh được đọc bằng thuật toán nhận dạng chữ nên có thể sai – kiểm tra kỹ tên món và giá.");
     } catch (e) {
       clearInterval(tick); state.busy = false;
-      status("Lỗi: " + (e.message === "NO_AI_KEY" ? "Chưa cấu hình GEMINI_API_KEY ở backend" : e.message.replace(/^TIMEOUT:\s*/, "")));
+      status("Lỗi: " + e.message);
     }
   };
   if ($("#amImg")) $("#amImg").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) readImage(f); };
@@ -857,16 +857,10 @@ function viewAddMenu() {
       const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith("image/"));
       if (f) { e.preventDefault(); readImage(f); }
     });
-    $("#amRead").onclick = async () => {
+    $("#amRead").onclick = () => {
       const text = $("#amText").value.trim();
       if (!text) return status("Chưa có văn bản để đọc.");
-      $("#amRead").disabled = true; status("AI đang đọc văn bản…");
-      let ai = null;
-      if (analyzeMenu(text, am.type).items.some(i => i.cat === OPT_CAT)) { $("#amRead").disabled = false; return finish(text, "", ""); }   // menu combo: đọc cục bộ (AI hay làm rơi món không giá)
-      try { ai = await withTimeout(api("readMenuText", { text }), 15000); } catch {}
-      $("#amRead").disabled = false;
-      if (ai) finish(ai.text, ai.shop, "");
-      else finish(text, "", "AI chưa trả lời kịp nên đọc bằng cách cơ bản – kiểm tra kỹ các dòng.");   // dự phòng: đọc ngay trong app
+      finish(text, "", "");
     };
   }
   if (am.step === 2) {
@@ -1838,34 +1832,6 @@ function wordsToColumnText(words, W) {
     return lines.map(L => L.w.sort((a, b) => a.x0 - b.x0).map(w => w.text).join(" ")).join("\n");
   }).join("\n");
 }
-// Cắt dải dọc [f0, f1] của ảnh (tỉ lệ 0..1), thu nhỏ (cạnh dài ≤ 1400px) cho nhanh, JPEG -> base64
-function cropToBase64(bmp, f0, f1) {
-  const sx = Math.round(bmp.width * f0), sw = Math.round(bmp.width * f1) - sx, k = Math.min(1, 1400 / Math.max(sw, bmp.height));
-  const cv = document.createElement("canvas"); cv.width = Math.round(sw * k); cv.height = Math.round(bmp.height * k);
-  cv.getContext("2d").drawImage(bmp, sx, 0, sw, bmp.height, 0, 0, cv.width, cv.height);
-  return cv.toDataURL("image/jpeg", 0.7).split(",")[1];
-}
-// Menu dài/nhiều cột: cắt 3 dải (chồng nhẹ 2%) đọc song song cho nhanh, rồi gộp theo mục, bỏ dòng trùng.
-// Chờ tối đa limitMs (15 giây): dải nào xong thì dùng, dải chậm bỏ qua và báo `late`
-async function aiReadMenu(file, onDone, limitMs = 15000) {
-  const bmp = await createImageBitmap(file), wide = bmp.width / bmp.height > 0.6;
-  const strips = wide ? [[0, 0.353], [0.313, 0.687], [0.647, 1]] : [[0, 1]];
-  let done = 0, firstErr = null; const t0 = Date.now(), got = [];
-  const jobs = strips.map(([a, b], i) => api("readMenuImage", { image: cropToBase64(bmp, a, b), mime: "image/jpeg" }).then(r => {
-    got[i] = r; done++; onDone?.(`Đã đọc xong ${done}/${strips.length} phần (${Math.round((Date.now() - t0) / 1000)}s)`);
-  }, e => { firstErr ||= e; }));
-  await Promise.race([Promise.all(jobs), new Promise(ok => setTimeout(ok, limitMs))]);
-  const rs = got.filter(Boolean), late = strips.length - rs.length - (firstErr ? 1 : 0);
-  if (!rs.length) throw firstErr || new Error(`TIMEOUT: AI chưa đọc xong trong ${Math.round(limitMs / 1000)} giây – thử lại, hoặc dùng ảnh nhỏ / rõ hơn`);
-  console.log("AI đọc menu:", rs.map(r => r.info));
-  const groups = [{ cat: "", lines: [] }];
-  rs.forEach(r => readGroups(r.text).forEach(g => {
-    let t = groups.find(x => x.cat === g.cat);
-    if (!t) groups.push(t = { cat: g.cat, lines: [] });
-    g.lines.forEach(l => { if (!t.lines.includes(l)) t.lines.push(l); });
-  }));
-  return { text: groupsText(groups), shop: rs.map(r => r.shop).find(Boolean) || "", notes: [...new Set(rs.flatMap(r => r.notes))], info: rs.map((r, i) => `Phần ${i + 1} – ${r.info}`).join("\n"), late: Math.max(0, strips.length - rs.length) };
-}
 async function ocrImage(file, onProgress) {
   await loadTesseract();
   const cv = await prepareForOcr(file);
@@ -1912,7 +1878,7 @@ function menuCard(type) {
       ${mpane(1, `<div class="step">Lấy menu từ</div>
       <div class="tabs sm">${SOURCES.map(([k, l]) => `<button data-src="${type}-${k}" class="${src === k ? "on" : ""}">${l}</button>`).join("")}</div>
       ${pane("img", `<input type="file" data-imp-img="${type}" accept="image/*">
-        <div class="mute" style="margin-top:4px">Chọn ảnh chụp menu – AI tự đọc món và giá. Trên máy tính có thể Ctrl+V ảnh vào ô ở tab "Dán chữ".</div>`)}
+        <div class="mute" style="margin-top:4px">Chọn ảnh chụp menu – app tự nhận dạng chữ để lấy món và giá. Trên máy tính có thể Ctrl+V ảnh vào ô ở tab "Dán chữ".</div>`)}
       ${pane("text", `<textarea data-imp-text="${type}" placeholder="Mỗi dòng một món có giá, VD:\n${esc(t.eg)}"></textarea>
         <button class="ghost" data-imp-go="${type}" style="margin-top:8px;width:100%">Đọc văn bản</button>`)}
       <div class="mute" data-imp-status="${type}" style="margin-top:6px"></div>
@@ -1935,19 +1901,16 @@ function menuCard(type) {
     </div>`;
 }
 
-// Quán mới có trùng quán đã có sẵn không? Trùng tên -> exact; tên khác nhưng cùng quán -> AI (backend) đoán, lỗi AI thì so khớp chuỗi
+// Quán mới có trùng quán đã có sẵn không? Trùng tên -> exact; tên khác nhưng chứa nhau -> coi là có thể trùng
 async function findDupShop(shop, type, list) {
   const f = s => fold(s).replace(/[^a-z0-9]/g, ""), k = f(shop);
   const same = list.find(p => f(p.shop) === k);
   if (same) return { name: same.shop, exact: true };
   if (!list.length) return null;
-  try { const r = await api("checkShop", { shop, type }); return r.dup ? { name: r.dup } : null; }
-  catch {
-    const near = list.find(p => { const q = f(p.shop); return q.length >= 4 && k.length >= 4 && (q.includes(k) || k.includes(q)); });
-    return near ? { name: near.shop } : null;
-  }
+  const near = list.find(p => { const q = f(p.shop); return q.length >= 4 && k.length >= 4 && (q.includes(k) || k.includes(q)); });
+  return near ? { name: near.shop } : null;
 }
-// Lưu menu thành "menu có sẵn": kiểm tra trùng quán (AI), hỏi lại, rồi lưu. Trả true nếu đã lưu. st(msg) hiện thông báo
+// Lưu menu thành "menu có sẵn": kiểm tra trùng quán, hỏi lại, rồi lưu. Trả true nếu đã lưu. st(msg) hiện thông báo
 async function savePresetFlow(shop, type, text, st) {
   text = text.split("\n").map(l => l.replace(/\s*\(hết\)\s*$/i, "").trim()).filter(Boolean).join("\n");
   if (!shop) return st("Nhập tên quán trước khi thêm vào menu có sẵn."), false;
@@ -1988,32 +1951,12 @@ function wireImport(type) {
   const runOcr = async file => {
     state.busy = true; q("go").disabled = true;
     try {
-      let text, ai = null, aiFail = "";
-      const t0 = Date.now(); let prog = "";
-      const tick = setInterval(() => status(`Đang đọc ảnh bằng AI… ${Math.round((Date.now() - t0) / 1000)}s ${prog}`), 1000);
-      try {
-        status("Đang đọc ảnh bằng AI…");
-        ai = await aiReadMenu(file, m => prog = "– " + m);
-        text = ai.text;
-        clearInterval(tick);
-      } catch (e) {
-        clearInterval(tick);
-        if (/^TIMEOUT/.test(e.message)) throw new Error(e.message.replace(/^TIMEOUT:\s*/, ""));   // quá 15 giây: không rơi xuống đọc ảnh cơ bản (chậm hơn)
-        aiFail = e.message === "NO_AI_KEY" ? "Chưa cấu hình GEMINI_API_KEY" : /không hợp lệ/.test(e.message) ? "Backend chưa deploy bản mới" : e.message;
-        status(`AI không dùng được (${aiFail}) – dùng đọc ảnh cơ bản, có thể sai. Đang đọc… (lần đầu ~30 giây)`);
-        text = await ocrImage(file, m => status(`Đọc ảnh cơ bản (có thể sai): ${m.status}${m.progress ? " " + Math.round(m.progress * 100) + "%" : ""}`));
-      }
+      status("Đang đọc ảnh… (lần đầu ~30 giây)");
+      const text = await ocrImage(file, m => status(`Đang đọc ảnh: ${m.status}${m.progress ? " " + Math.round(m.progress * 100) + "%" : ""}`));
       q("text").value = text.trim();
       state.dirty = true;
       analyze();
-      if (ai) {
-        const pv = state.preview[type];
-        if (ai.shop && !pv.shop && !state.pendingNote.shops[type]) pv.shop = ai.shop;
-        pv.notes.push(...ai.notes.filter(n => !state.pendingNote[type].includes(n) && !pv.notes.includes(n)));
-        drawPreview(type);
-        status(`AI đã đọc: ${pv.rows.length} dòng trong ${Math.round((Date.now() - t0) / 1000)}s. Kiểm tra bên dưới rồi bấm "Thêm vào menu ${TYPE_INFO[type].label}".${ai.late ? `\n⚠ ${ai.late} phần ảnh chưa đọc kịp trong 15 giây – chọn lại ảnh để đọc lại.` : ""}\n${ai.info}`);
-        q("status").style.whiteSpace = "pre-line";
-      } else status(`⚠ AI không dùng được (${aiFail}) nên đã dùng đọc ảnh cơ bản, kết quả có thể sai. ${q("status").textContent}`);
+      status(`Đã đọc ảnh bằng nhận dạng chữ, có thể sai – kiểm tra kỹ. ${q("status").textContent}`);
     } catch (e) { status("Lỗi: " + e.message); }
     state.busy = false; q("go").disabled = false;
   };
