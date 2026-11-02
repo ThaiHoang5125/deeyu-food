@@ -351,7 +351,7 @@
 
 <script>
 /* ===== CẤU HÌNH ===== */
-const API_URL = "https://script.google.com/macros/s/AKfycbzCbe5gifV9WYR1dlZx-lCs0wj1z2vmhyx2jj2XW3PvxizkaZ3ptjg4jnV1meSSYdQ/exec";               // Dán URL Web App của Apps Script vào đây
+const API_URL = "https://deeyu-food.hoangluuanthaiost.workers.dev/api";   // Cloudflare Worker + D1 (worker/index.js); trang chạy ở pages.dev hoặc workers.dev đều gọi được (CORS mở)
 const DEFAULT_PLACE = "Cổng chui Bách Khoa";
 
 // [mã, tên, BIN trong mã VietQR]
@@ -459,7 +459,7 @@ async function api(action, payload = {}) {
   });
   const j = await res.json();
   if (!j.ok) {
-    if (j.error === "Hành động không hợp lệ") throw new Error("Backend chưa cập nhật: dán lại apps-script/Code.gs vào Apps Script rồi Triển khai → Quản lý bản triển khai → Phiên bản mới");
+    if (j.error === "Hành động không hợp lệ") throw new Error("Máy chủ chưa cập nhật bản mới: chạy lại npx wrangler deploy");
     // Token sai / hết hạn (VD vừa đổi PIN): đăng xuất, quay về màn hình đăng nhập
     if (/^AUTH/.test(j.error) && action !== "login" && state.user) { store.clear(); state.user = null; go("login", null, true); }
     throw new Error(String(j.error).replace(/^AUTH:\s*/, ""));
@@ -583,7 +583,7 @@ function viewLogin(stage = "", phone = "") {
       state.user = { phone: p };
       const r = await api("login", body);
       if (r.stage === "register") { state.user = null; return viewLogin("register", p); }
-      if (r.stage) throw new Error("Backend Apps Script chưa cập nhật bản không PIN – hãy dán lại Code.gs và triển khai lại");
+      if (r.stage) throw new Error("Máy chủ chưa cập nhật – hãy triển khai lại Worker");
       state.user = { phone: r.phone, name: r.name, token: r.token };
       store.set(state.user);
       // Máy mới: lấy tài khoản nhận tiền đã lưu trên server để điền sẵn khi tạo phiên
@@ -632,7 +632,7 @@ async function viewHome() {
         <div class="grow">
           <div class="t"><b>${esc(s.shop || (s.kind === "nuoc" ? "Phiên đặt nước" : "Phiên đặt cơm"))}</b><span class="tag ${open ? "ok" : "gray"}">${open ? "Đang mở" : "Đã chốt"}</span></div>
           <div class="meta"><span>${esc(s.owner_name)}${s.owner_phone === state.user.phone ? " (bạn)" : ""} · ${new Date(s.created).toLocaleString("vi-VN", open ? { hour:"2-digit", minute:"2-digit" } : { day:"2-digit", month:"2-digit" })}</span><span>${I("pin", "sm")} ${esc(s.place)}</span></div>
-          <div class="meta"><span>${I("users", "sm")} ${s.people ? `${s.people} người` : "Chưa ai đặt"}</span>${s.deadline ? `<span class="${soon ? "warn" : ""}">${dlSpan(s)}</span>` : ""}${s.subsidy ? `<span class="gift">${I("gift", "sm")} ${money(s.subsidy)}/suất</span>` : ""}</div>
+          <div class="meta"><span>${I("users", "sm")} ${s.people ? `${s.people} người` : "Chưa ai đặt"}</span>${s.notices ? `<span class="tag locked">${s.notices} thông báo mới</span>` : ""}${s.deadline ? `<span class="${soon ? "warn" : ""}">${dlSpan(s)}</span>` : ""}${s.subsidy ? `<span class="gift">${I("gift", "sm")} ${money(s.subsidy)}/suất</span>` : ""}</div>
         </div>
       </div>`;
     }).join("") : `<div class="card empty">${I("rice")}Chưa có phiên nào.<br>Bấm <b>Tạo phiên</b> ở trên để mở phiên đầu tiên.</div>`;
@@ -709,7 +709,7 @@ async function viewStats() {
   });
   try {
     r = await api("myStats", { since: statsSince(range) });
-    if (!r.collect?.people || !r.owe?.owners || !r.subsidyList) { r = null; throw new Error("Backend chưa cập nhật: dán lại apps-script/Code.gs vào Apps Script rồi Triển khai → Quản lý bản triển khai → Phiên bản mới"); }
+    if (!r.collect?.people || !r.owe?.owners || !r.subsidyList) { r = null; throw new Error("Máy chủ chưa cập nhật bản mới: chạy lại npx wrangler deploy"); }
     draw();
   }
   catch (e) { if ($("#statsBox")) $("#statsBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
@@ -1144,7 +1144,7 @@ async function viewSession(keepCart = false) {
     drawSession();
     clearInterval(state.timer);
     state.timer = setInterval(() => {
-      if (state.view === "session" && !state.busy && !state.dirty && !state.cartDirty && !document.activeElement?.matches("input,textarea")) refreshSession();
+      if (state.view === "session" && !state.busy && !state.dirty && !state.cartDirty && !saver.running && !document.activeElement?.matches("input,textarea")) refreshSession();
     }, 15000);
   } catch (e) { $("#app").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
@@ -1153,8 +1153,22 @@ async function refreshSession() {
   try {
     const d = await api("getSession", { id: state.sid, v: state.data?.v });
     if (d.same) return;
+    const known = new Set((state.data?.notices || []).map(n => n.id));
     state.data = d; drawSession();
+    if ((d.notices || []).some(n => !known.has(n.id))) toast("Chủ phiên đã sửa đơn của bạn – xem thông báo ở đầu trang");
   } catch {}
+}
+// Thông báo cho người đặt (chủ phiên xóa / đổi món): hiện ở đầu phiên đến khi bấm "Đã hiểu"
+function paintNotices() {
+  const box = $("#noticeBox"); if (!box) return;
+  const list = state.data.notices || [];
+  box.innerHTML = list.map(n => `<div class="callout" data-nid="${esc(n.id)}">${I("info", "sm")}<div class="grow"><b>Thông báo</b><br>${esc(n.text)}</div>
+    <button class="ghost plain" data-ack="${esc(n.id)}" style="min-height:32px;padding:4px 10px;margin:0">Đã hiểu</button></div>`).join("");
+  box.querySelectorAll("[data-ack]").forEach(b => b.onclick = () => {
+    const id = b.dataset.ack;
+    state.data.notices = state.data.notices.filter(n => n.id !== id); paintNotices();
+    api("ackNotice", { ids: [id] }).catch(() => {});
+  });
 }
 
 const isOwner = () => state.data.session.owner_phone === state.user.phone;
@@ -1187,13 +1201,15 @@ function drawSession() {
         <span class="ichip">${I("pin", "sm")} ${esc(s.place)}</span>
       </div>
     </div>
+    <div id="noticeBox"></div>
     <div class="tabs five" id="mainTabs"></div>
     <div id="panel"></div>`;
   $("#shareBtn").onclick = shareSession;
+  paintNotices();
   // Các bước của phiên: Đặt · Menu · Cài đặt (gồm Xóa phiên) · Chốt & thu (3 tab sau chỉ người tạo phiên thấy)
   const old = { com: "order", nuoc: "order", orders: "close", manage: "menu", delete: "settings" };
   if (old[state.panel]) { if (old[state.panel] === "order") state.tab = state.panel; state.panel = old[state.panel]; }
-  if (!owner || !["order", "menu", "settings", "close"].includes(state.panel)) state.panel = "order";
+  if (!owner || !["order", "menu", "settings", "close", "unpaid"].includes(state.panel)) state.panel = "order";
   if (s.kind) state.tab = s.kind; else if (state.tab !== "com" && state.tab !== "nuoc") state.tab = "com";
   paintTabs();
   if (state.panel === "order") drawOrder(); else drawManage();
@@ -1207,7 +1223,8 @@ function paintTabs() {
   box.className = isOwner() ? "tabs five" : "hidden";
   if (!isOwner()) { box.innerHTML = ""; return; }
   box.innerHTML = tab("order", order[0], order[1] + (n ? ` (${n})` : ""))
-    + tab("menu", "file", "Menu") + tab("settings", "sliders", "Cài đặt") + tab("close", "list", "Chốt & thu");
+    + tab("menu", "file", "Menu") + tab("settings", "sliders", "Cài đặt") + tab("close", "list", "Chốt & thu")
+    + tab("unpaid", "wallet", "Chưa chuyển" + (unpaidCount() ? ` (${unpaidCount()})` : ""));
   box.querySelectorAll("[data-p]").forEach(b => b.onclick = () => {
     if (b.dataset.p === "menu" && !s.kind) state.mtab = state.tab;
     state.panel = b.dataset.p; state.q = ""; drawSession();
@@ -1385,8 +1402,14 @@ document.addEventListener("click", e => {
   const l = state.cart.find(x => lineKey(x) === b.closest("[data-k]").dataset.k);
   if (!l) return;
   l.qty = Math.max(0, Math.min(50, l.qty + Number(b.dataset.ld)));
-  if (!l.qty) state.cart.splice(state.cart.indexOf(l), 1);
-  drawOrder();
+  if (!l.qty) { state.cart.splice(state.cart.indexOf(l), 1); drawOrder(); markCart(); return; }
+  // Còn số lượng: chỉ sửa đúng dòng trong danh sách món, không vẽ lại cả menu
+  const k = lineKey(l);
+  document.querySelectorAll("#panel .line").forEach(el => {
+    if (el.dataset.k !== k) return;
+    el.querySelector(".qty span").textContent = l.qty;
+    el.querySelector(".grow b").textContent = money(lineUnit(l) * l.qty);
+  });
   markCart();
 });
 
@@ -1464,7 +1487,11 @@ function ordersByPerson(orders, manage) {
     return `<div class="item person">${avatar(p.name, ph)}<div class="grow">
       <div class="row"><div class="grow"><b>${esc(p.name)}</b> <span class="mute">${esc(ph)}</span></div>
         <b class="num" title="${sub ? `Tiền món ${money(amount)} − hỗ trợ ${money(sub)}` : ""}">${money(amount - sub)}</b></div>
-      <div class="mute">${p.rows.map(o => `${o.qty}× ${esc(orderLabel(o))}${o.note ? " (" + esc(o.note) + ")" : ""}`).join(", ")}${sub ? ` · hỗ trợ −${money(sub)}` : ""}</div>
+      ${manage && isOpen() ? p.rows.map(o => `<div class="row mt1"><div class="grow mute">${o.qty}× ${esc(orderLabel(o))}${o.note ? " (" + esc(o.note) + ")" : ""}</div>
+        <button class="ghost plain" style="min-height:30px;padding:2px 8px;margin:0;font-size:13px" data-oedit="${esc(JSON.stringify([ph, o.item, o.size, o.toppings]))}">Đổi</button>
+        <button class="iconbtn" style="width:30px;height:30px" data-odel="${esc(JSON.stringify([ph, o.item, o.size, o.toppings]))}" aria-label="Xóa món">${I("trash", "sm")}</button></div>`).join("")
+        + (sub ? `<div class="mute mt1">Hỗ trợ −${money(sub)}</div>` : "")
+        : `<div class="mute">${p.rows.map(o => `${o.qty}× ${esc(orderLabel(o))}${o.note ? " (" + esc(o.note) + ")" : ""}`).join(", ")}${sub ? ` · hỗ trợ −${money(sub)}` : ""}</div>`}
       ${manage ? `<div class="row mt2">${claim}<span class="grow"></span><button class="ghost ${p.paid ? "paid" : "plain"}" data-paid="${esc(ph)}" data-v="${p.paid ? 0 : 1}">${p.paid ? `${I("check", "sm")} Đã trả` : p.claimed ? `${I("check", "sm")} Xác nhận` : "Đánh dấu đã trả"}</button></div>`
         : p.paid ? `<div class="mt1"><span class="tag ok">Đã trả</span></div>` : claim || s.prepay ? `<div class="mt1">${claim || `<span class="tag locked">Chờ chuyển khoản</span>`}</div>` : ""}</div></div>`;
   }).join("");
@@ -1482,17 +1509,23 @@ function markCart() {
 async function placeNow() {
   if (saver.running) return;
   saver.running = true; saver.msg = ""; paintBar();
-  const sid = state.sid;
+  const sid = state.sid, me = state.user.phone, before = state.data.orders;
   try {
-    const items = state.cart.filter(l => state.data.menu.some(m => m.active && m.name === l.name && (m.size || "") === l.size))
-      .map(l => ({ name: l.name, size: l.size, toppings: l.toppings, qty: l.qty, note: l.note }));
-    await api("placeOrder", { id: sid, items });
-    if (state.view === "session" && state.sid === sid) {
-      state.data = await api("getSession", { id: sid });
-      state.cartDirty = false;
-      saver.msg = "✓ Đã đặt";
-    }
-  } catch (e) { saver.msg = "⚠ Chưa đặt được: " + e.message; }
+    const valid = state.cart.filter(l => state.data.menu.some(m => m.active && m.name === l.name && (m.size || "") === l.size));
+    const items = valid.map(l => ({ name: l.name, size: l.size, toppings: l.toppings, qty: l.qty, note: l.note }));
+    // Hiện "Đã đặt" ngay (đơn tạm), server trả dữ liệu phiên mới thì thay vào; lỗi thì trả lại như cũ
+    const mine = valid.map(l => ({ phone: me, name: state.user.name, item: l.name, qty: l.qty, note: l.note, price: lineUnit(l), type: findVariant(l.name, l.size)?.type || "com",
+      paid: false, claimed: false, size: l.size, toppings: l.toppings.join("|") }));
+    state.data.orders = [...before.filter(o => o.phone !== me), ...mine];
+    state.cartDirty = false; saver.msg = "✓ Đã đặt"; saver.running = false;
+    if ($("#peopleCard")) paintPeople(); paintBar();
+    saver.running = true;
+    const d = await api("placeOrder", { id: sid, items });
+    if (state.view === "session" && state.sid === sid) { const nt = state.data.notices; state.data = d.session ? d : state.data; if (!d.notices) state.data.notices = nt; }
+  } catch (e) {
+    if (state.view === "session" && state.sid === sid) { state.data.orders = before; state.cartDirty = true; }
+    saver.msg = "⚠ Chưa đặt được: " + e.message;
+  }
   saver.running = false;
   if (state.view === "session" && state.sid === sid && state.data) { if ($("#peopleCard")) paintPeople(); paintBar(); }
 }
@@ -1552,9 +1585,14 @@ const summaryTail = s => [s.owner_phone, s.place, deliveryText(s)].filter(Boolea
 const summaryOrders = () => state.data.session.prepay ? state.data.orders.filter(o => o.paid) : state.data.orders;
 function buildSummary() {
   const { session: s } = state.data, agg = {};
-  summaryOrders().forEach(o => { const a = agg[orderLabel(o)] ||= { qty: 0, price: o.price }; a.qty += o.qty; });
-  const lines = Object.entries(agg).map(([n, a]) => `${a.qty}p ${n} (${money(a.price)})`);
-  return lines.join("\n") + (lines.length ? "\n" : "") + summaryTail(s);
+  summaryOrders().forEach(o => {
+    const a = agg[orderLabel(o)] ||= { qty: 0, price: o.price, notes: [] };
+    a.qty += o.qty;
+    if (o.note && noteOn(orderNoteKey(o), true) && !a.notes.includes(o.note)) a.notes.push(o.note);
+  });
+  const lines = Object.entries(agg).map(([n, a]) => `${a.qty}p ${n} (${money(a.price)})${a.notes.length ? " – " + a.notes.join("; ") : ""}`);
+  const general = [...new Set(sessionNoteLines())].filter(l => noteOn("s:" + l, false));
+  return lines.join("\n") + (lines.length ? "\n" : "") + (general.length ? "Lưu ý: " + general.join("; ") + "\n" : "") + summaryTail(s);
 }
 // Tổng hợp đơn: như tin nhắn tổng hợp nhưng cuối mỗi món ghi ai đặt (đặt từ 2 phần ghi ×n, kèm ghi chú riêng)
 function buildDetail() {
@@ -2086,6 +2124,7 @@ function drawManage() {
       <div class="card">
         <h2>Tin nhắn gửi quán</h2>
         <pre class="sum" id="sum">${esc(buildSummary())}</pre>
+        <div id="noteSel" style="margin-bottom:8px"></div>
         ${state.data.session.prepay ? `<div class="mute" style="margin-bottom:8px">Phiên yêu cầu chuyển khoản trước: tin nhắn chỉ tính đơn đã đánh dấu "Đã trả".</div>` : ""}
         <button class="ghost w100" id="copy">${I("copy", "sm")} Copy tin nhắn</button>
         ${S.kind === "nuoc" ? "" : `<label class="chk mt3"><input type="checkbox" id="extraFull" ${S.extra_full ? "checked" : ""}> Cơm canh thêm đầy đủ</label>
@@ -2097,7 +2136,10 @@ function drawManage() {
         <pre class="sum" id="detail">${esc(buildDetail())}</pre>
         <button class="ghost plain w100" id="copyDetail">${I("copy", "sm")} Copy</button>
       </div>`;
+  sec.unpaid = unpaidHtml();
   $("#panel").innerHTML = sec[P];
+  if (P === "close") paintNoteSel();
+  if (P === "unpaid") paintUnpaid();
   state.dirty = false;
   document.querySelectorAll("#panel textarea").forEach(t => t.addEventListener("input", () => state.dirty = true));
   if (P === "menu") ["com", "nuoc"].forEach(t => $("#m-" + t).addEventListener("input", () => updCount(t)));
@@ -2164,7 +2206,7 @@ function drawManage() {
   if (P === "close") $("#copy").onclick = () => copyText($("#sum").textContent);
   if ($("#extraFull")) $("#extraFull").onchange = async e => {
     const v = e.target.checked;
-    const repaint = () => { $("#sum").textContent = buildSummary(); $("#detail").textContent = buildDetail(); };
+    const repaint = () => { paintNoteSel(); $("#detail").textContent = buildDetail(); };
     S.extra_full = v; repaint();
     try { await api("setExtraFull", { id: state.sid, value: v }); }
     catch (err) { S.extra_full = !v; e.target.checked = !v; repaint(); toast(err.message); }
@@ -2214,19 +2256,122 @@ function drawManage() {
 
 // Bấm "Chưa trả / Đã trả": đổi màu ngay trên màn hình, gửi server sau; lỗi thì trả về như cũ
 function paintManageOrders() {
+  if (state.panel === "unpaid") return paintUnpaid();
   $("#ordersCard").innerHTML = `<h2>Đơn của mọi người</h2>${ordersByPerson(state.data.orders, true)}`;
   $("#kpiBox").innerHTML = closeKpis();
-  $("#sum").textContent = buildSummary();
+  paintNoteSel();
   $("#detail").textContent = buildDetail();
+  paintTabs();
   wirePaid();
 }
+// Đánh dấu một người đã / chưa trả (tab Chốt & thu và tab Chưa chuyển dùng chung)
+async function togglePaid(ph, v) {
+  const rows = state.data.orders.filter(o => o.phone === ph), old = rows.map(o => o.paid);
+  rows.forEach(o => o.paid = v); paintManageOrders();
+  try { await api("setPaid", { id: state.sid, orderPhone: ph, paid: v }); }
+  catch (e) { rows.forEach((o, i) => o.paid = old[i]); paintManageOrders(); toast(e.message); }
+}
 function wirePaid() {
-  document.querySelectorAll("[data-paid]").forEach(b => b.onclick = async () => {
-    const ph = b.dataset.paid, v = b.dataset.v === "1", rows = state.data.orders.filter(o => o.phone === ph), old = rows.map(o => o.paid);
-    rows.forEach(o => o.paid = v); paintManageOrders();
-    try { await api("setPaid", { id: state.sid, orderPhone: ph, paid: v }); }
-    catch (e) { rows.forEach((o, i) => o.paid = old[i]); paintManageOrders(); toast(e.message); }
+  document.querySelectorAll("[data-paid]").forEach(b => b.onclick = () => togglePaid(b.dataset.paid, b.dataset.v === "1"));
+  document.querySelectorAll("[data-oedit]").forEach(b => b.onclick = () => ownerEdit("replace", JSON.parse(b.dataset.oedit)));
+  document.querySelectorAll("[data-odel]").forEach(b => b.onclick = () => ownerEdit("remove", JSON.parse(b.dataset.odel)));
+}
+
+// Chủ phiên xóa / đổi một món trong đơn của người khác; người đó nhận thông báo trong app
+function pickDialog(title, options, reasonHint) {
+  return new Promise(done => {
+    const bg = document.createElement("div"), sh = document.createElement("div");
+    bg.className = "sheet-bg"; sh.className = "sheet"; sh.setAttribute("role", "dialog"); sh.setAttribute("aria-modal", "true");
+    sh.innerHTML = `<div class="grab"></div><div class="msg" style="margin-bottom:10px"><b></b></div>
+      ${options ? `<div class="search" style="margin-bottom:8px">${I("search")}<input id="pdQ" type="search" placeholder="Tìm món (gõ không dấu cũng được)"></div>
+      <div id="pdList" style="max-height:38vh;overflow:auto;margin-bottom:10px"></div>` : ""}
+      <input id="pdWhy" maxlength="100" placeholder="${esc(reasonHint)}" style="width:100%;margin-bottom:14px">
+      <div class="acts"><button class="ghost plain" data-no>Hủy</button><button class="primary ${options ? "" : "danger"}" data-yes ${options ? "disabled" : ""}></button></div>`;
+    $(".msg b", sh).textContent = title; $("[data-yes]", sh).textContent = options ? "Đổi món" : "Xóa món";
+    let pick = null;
+    const close = v => { bg.classList.remove("show"); sh.classList.remove("show"); setTimeout(() => { bg.remove(); sh.remove(); }, 220); done(v); };
+    const paint = () => {
+      const q = fold($("#pdQ", sh).value.trim());
+      $("#pdList", sh).innerHTML = options.filter(o => !q || fold(o.label).includes(q)).map(o => `<label class="chk"><input type="radio" name="pd" value="${options.indexOf(o)}" ${pick === o ? "checked" : ""}> ${esc(o.label)} <span class="mute">${money(o.price)}</span></label>`).join("") || `<div class="mute">Không có món nào khớp.</div>`;
+      sh.querySelectorAll("input[name=pd]").forEach(r => r.onchange = () => { pick = options[+r.value]; $("[data-yes]", sh).disabled = false; });
+    };
+    if (options) { $("#pdQ", sh).oninput = paint; paint(); }
+    bg.onclick = () => close(null); $("[data-no]", sh).onclick = () => close(null);
+    $("[data-yes]", sh).onclick = () => close({ pick, reason: $("#pdWhy", sh).value.trim() });
+    document.body.append(bg, sh);
+    requestAnimationFrame(() => { bg.classList.add("show"); sh.classList.add("show"); });
   });
+}
+async function ownerEdit(action, [ph, item, size, toppings]) {
+  const o = state.data.orders.find(x => x.phone === ph && x.item === item && x.size === size && x.toppings === toppings);
+  if (!o) return;
+  let options = null;
+  if (action === "replace") {
+    // Món thay thế: món còn bán cùng loại (không kể topping), trừ chính món đang có
+    options = state.data.menu.filter(m => m.active && !isTopping(m) && m.type === o.type && !(m.name === o.item && (m.size || "") === o.size))
+      .map(m => ({ name: m.name, size: m.size || "", price: m.price, label: m.name + (m.size ? ` (${m.size})` : "") }));
+    if (!options.length) return toast("Menu không có món nào khác để đổi");
+  }
+  const r = await pickDialog(`${action === "replace" ? "Đổi" : "Xóa"} "${orderLabel(o)}" của ${o.name}?\n${o.name} sẽ nhận thông báo.`.split("\n")[0] + " (" + o.name + " sẽ nhận thông báo)", options, "Lý do (không bắt buộc, VD: quán hết món)");
+  if (!r) return;
+  const body = { id: state.sid, orderPhone: ph, item, size, toppings, op: action, reason: r.reason };
+  if (action === "replace") body.newItem = { name: r.pick.name, size: r.pick.size, toppings: [] };
+  try {
+    const d = await api("ownerEditOrder", body);
+    state.data = d; toast(action === "replace" ? "Đã đổi món, đã báo người đặt ✓" : "Đã xóa món, đã báo người đặt ✓");
+    drawSession();
+  } catch (e) { toast(e.message); }
+}
+
+// Tab "Chưa chuyển": những người đã đặt mà chủ phiên chưa đánh dấu "Đã trả". Tick = đã nhận tiền (giống nút Đã trả ở Chốt & thu)
+function peopleStatus() {
+  const s = state.data.session, by = {};
+  state.data.orders.forEach(o => (by[o.phone] ||= { phone: o.phone, name: o.name, paid: o.paid, claimed: o.claimed, rows: [] }).rows.push(o));
+  return Object.values(by).map(p => {
+    const amount = p.rows.reduce((t, o) => t + o.price * o.qty, 0);
+    p.due = amount - subsidyOf(s, amount, p.rows.reduce((n, o) => n + (isPortion(s, o.type, o.item) ? o.qty : 0), 0));
+    return p;
+  }).sort((a, b) => a.name.localeCompare(b.name, "vi"));
+}
+const unpaidCount = () => peopleStatus().filter(p => !p.paid).length;
+function unpaidHtml() {
+  const ps = peopleStatus(), todo = ps.filter(p => !p.paid), done = ps.filter(p => p.paid);
+  const row = p => `<label class="chk item person">${avatar(p.name, p.phone)}<span class="grow"><b>${esc(p.name)}</b> <span class="mute">${esc(p.phone)}</span>
+      ${p.claimed && !p.paid ? `<span class="tag info">Báo đã chuyển</span>` : ""}</span><b class="num">${money(p.due)}</b>
+      <input type="checkbox" data-up="${esc(p.phone)}" ${p.paid ? "checked" : ""} aria-label="Đã nhận tiền của ${esc(p.name)}"></label>`;
+  return `<div class="card"><h2>Chưa chuyển khoản${todo.length ? ` (${todo.length})` : ""}</h2>
+      <div class="mute" style="margin-bottom:6px">Tick khi đã nhận tiền của người đó – tự chuyển sang "Đã trả" ở tab Chốt & thu.</div>
+      ${!ps.length ? `<div class="empty">${I("users")}Chưa có ai đặt.</div>` : todo.length ? todo.map(row).join("") : `<div class="empty">${I("check")}Mọi người đã chuyển đủ ✓</div>`}</div>
+    ${done.length ? `<details class="card dd"><summary>Đã chuyển (${done.length})</summary>${done.map(row).join("")}</details>` : ""}`;
+}
+function paintUnpaid() {
+  const box = $("#panel"); if (!box || state.panel !== "unpaid") return;
+  const open = box.querySelector("details")?.open;
+  box.innerHTML = unpaidHtml();
+  if (open) box.querySelector("details")?.setAttribute("open", "");
+  box.querySelectorAll("[data-up]").forEach(c => c.onchange = () => togglePaid(c.dataset.up, c.checked));
+  paintTabs();
+}
+
+// Ghi chú riêng của từng đơn đưa vào "Tin nhắn gửi quán": mỗi ghi chú một ô tick, bỏ tick = không gửi. Lưu theo phiên trên máy này.
+// Ghi chú chung của phiên (lưu ý món) mặc định KHÔNG đưa vào tin nhắn; tick nếu muốn.
+const noteSelKey = () => "ns_" + state.sid;
+const noteOn = (k, def) => { const m = mem.get(noteSelKey(), {}); return k in m ? m[k] : def; };
+const orderNoteKey = o => "n:" + o.phone + "|" + orderLabel(o);
+const sessionNoteLines = () => { const n = parseNotes(state.data.session.note); return ["com", "nuoc"].flatMap(t => n[t]); };
+function paintNoteSel() {
+  const box = $("#noteSel"); if (!box) return;
+  const items = [...summaryOrders().filter(o => o.note).map(o => ({ k: orderNoteKey(o), def: true, text: `${o.name} – ${orderLabel(o)}: ${o.note}` })),
+    ...sessionNoteLines().map((l, i) => ({ k: "s:" + l, def: false, text: `Lưu ý chung: ${l}` }))];
+  const seen = new Set(), list = items.filter(x => !seen.has(x.k) && seen.add(x.k));
+  const open = box.querySelector("details")?.open ?? true;
+  box.innerHTML = list.length ? `<details class="dd" ${open ? "open" : ""}><summary>Ghi chú đưa vào tin nhắn (${list.filter(x => noteOn(x.k, x.def)).length}/${list.length})</summary><div class="ddbox">
+      ${list.map(x => `<label class="chk"><input type="checkbox" data-nsel="${esc(x.k)}" ${noteOn(x.k, x.def) ? "checked" : ""}> ${esc(x.text)}</label>`).join("")}
+      <div class="row mt1"><button class="ghost plain" data-nall="1">Chọn hết</button><button class="ghost plain" data-nall="0">Bỏ hết</button></div></div></details>` : "";
+  const set = (k, v) => { const m = mem.get(noteSelKey(), {}); m[k] = v; mem.set(noteSelKey(), m); };
+  box.querySelectorAll("[data-nsel]").forEach(c => c.onchange = () => { set(c.dataset.nsel, c.checked); paintNoteSel(); });
+  box.querySelectorAll("[data-nall]").forEach(b => b.onclick = () => { list.forEach(x => set(x.k, b.dataset.nall === "1")); paintNoteSel(); });
+  $("#sum").textContent = buildSummary();
 }
 
 // Đổi tab con trong Quản lý mà không vẽ lại (giữ nội dung đang nhập)
