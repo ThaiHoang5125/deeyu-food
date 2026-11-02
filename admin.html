@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Deeyu Food – Quản trị dữ liệu</title>
+<link rel="icon" type="image/png" href="img/favicon-48.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
+<style>
+  :root {
+    --bg:#f7f4ef; --card:#fff; --ink:#1f1a14; --ink2:#4a4037; --mute:#74685a; --line:#ece5dc; --line2:#d9cfc2; --sunk:#f3eee7;
+    --brand:#1b0e5e; --brand-l:#3f3291; --brand2:#eeecf8; --brand3:#dcd8f0;
+    --ok:#237a35; --ok2:#e7f6ea; --warn:#9a4a00; --warn2:#fff4e6; --bad:#c92a2a; --bad2:#ffeded; --info:#1864ab; --info2:#e7f3ff;
+    --r:14px; --sh:0 1px 2px rgba(31,26,20,.05), 0 4px 14px rgba(31,26,20,.05);
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 "Be Vietnam Pro", system-ui, sans-serif; }
+  button, input { font:inherit; color:inherit; }
+  .wrap { max-width:1100px; margin:0 auto; padding:0 16px 48px; }
+  header { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+  header .in { max-width:1100px; margin:0 auto; padding:10px 16px; display:flex; align-items:center; gap:12px; }
+  header img { width:34px; height:34px; border-radius:9px; }
+  header h1 { font-size:17px; margin:0; flex:1; letter-spacing:-.2px; }
+  header h1 small { display:block; font-weight:500; font-size:12px; color:var(--mute); letter-spacing:0; }
+  .btn { border:1px solid var(--line2); background:#fff; border-radius:10px; padding:7px 12px; cursor:pointer; font-weight:600; font-size:13.5px; display:inline-flex; align-items:center; gap:6px; }
+  .btn:hover { background:var(--sunk); }
+  .btn.primary { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .btn.primary:hover { background:var(--brand-l); }
+  .btn:disabled { opacity:.55; cursor:default; }
+
+  .login { max-width:360px; margin:12vh auto 0; background:#fff; border-radius:var(--r); box-shadow:var(--sh); padding:26px 22px; text-align:center; }
+  .login img { width:56px; height:56px; border-radius:14px; }
+  .login h2 { margin:10px 0 4px; font-size:19px; }
+  .login p { margin:0 0 16px; color:var(--mute); font-size:13.5px; }
+  .login input { width:100%; padding:12px 14px; border:1.5px solid var(--line2); border-radius:12px; background:#fff; margin-bottom:10px; outline:none; }
+  .login input:focus { border-color:var(--brand-l); box-shadow:0 0 0 4px rgba(27,14,94,.12); }
+  .login .btn { width:100%; justify-content:center; padding:11px; }
+  .err { color:var(--bad); font-size:13.5px; min-height:20px; margin-top:8px; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:18px 0; }
+  .stat { background:#fff; border-radius:var(--r); box-shadow:var(--sh); padding:14px 16px; }
+  .stat span { display:block; font-size:12.5px; color:var(--mute); font-weight:500; }
+  .stat b { font-size:24px; letter-spacing:-.5px; }
+  .stat.bad b { color:var(--bad); } .stat.ok b { color:var(--ok); }
+
+  .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .tabs { display:flex; gap:4px; background:var(--sunk); padding:4px; border-radius:13px; overflow-x:auto; flex:1 1 auto; scrollbar-width:none; }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tabs button { border:0; background:transparent; padding:8px 13px; border-radius:10px; font-weight:600; color:var(--mute); cursor:pointer; white-space:nowrap; font-size:14px; }
+  .tabs button.on { background:#fff; color:var(--brand); box-shadow:0 1px 3px rgba(31,26,20,.12); }
+  .tabs .n { font-size:11.5px; background:var(--line); border-radius:99px; padding:1px 7px; margin-left:5px; color:var(--ink2); }
+  .tabs button.on .n { background:var(--brand2); color:var(--brand); }
+  .search { flex:1 1 220px; max-width:340px; }
+  .search input { width:100%; padding:9px 13px; border:1.5px solid var(--line2); border-radius:11px; background:#fff; outline:none; }
+  .search input:focus { border-color:var(--brand-l); box-shadow:0 0 0 4px rgba(27,14,94,.12); }
+
+  .tag { display:inline-block; font-size:12px; font-weight:700; padding:2px 9px; border-radius:99px; background:var(--sunk); color:var(--mute); white-space:nowrap; }
+  .tag.ok { background:var(--ok2); color:var(--ok); } .tag.bad { background:var(--bad2); color:var(--bad); }
+  .tag.info { background:var(--info2); color:var(--info); } .tag.warn { background:var(--warn2); color:var(--warn); } .tag.brand { background:var(--brand2); color:var(--brand); }
+  .mute { color:var(--mute); } .small { font-size:13px; } .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+  .card { background:#fff; border-radius:var(--r); box-shadow:var(--sh); overflow:hidden; }
+  .scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.4px; color:var(--mute); font-weight:700; padding:11px 14px; background:var(--sunk); white-space:nowrap; position:sticky; top:0; }
+  td { padding:10px 14px; border-top:1px solid var(--line); vertical-align:top; }
+  tbody tr:hover td { background:#fbf9f6; }
+  td.wrap2 { min-width:180px; max-width:360px; white-space:pre-line; }
+  .empty { padding:36px; text-align:center; color:var(--mute); }
+
+  .sess { padding:14px 16px; border-top:1px solid var(--line); cursor:pointer; }
+  .sess:first-child { border-top:0; }
+  .sess:hover { background:#fbf9f6; }
+  .sess .top { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .sess .top b { font-size:15.5px; flex:1 1 180px; }
+  .sess .meta { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; color:var(--mute); margin-top:3px; }
+  .prog { height:6px; border-radius:6px; background:var(--line); margin-top:9px; overflow:hidden; }
+  .prog i { display:block; height:100%; background:var(--ok); border-radius:6px; }
+  .detail { margin-top:12px; background:var(--sunk); border-radius:12px; padding:6px 14px; cursor:default; }
+  .person { padding:10px 0; border-top:1px solid var(--line2); }
+  .person:first-child { border-top:0; }
+  .person .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .person .row b { flex:1 1 140px; }
+  .line { font-size:13.5px; color:var(--ink2); margin:3px 0 0 0; }
+  .foot { text-align:center; color:var(--mute); font-size:12.5px; margin-top:16px; }
+  .hidden { display:none !important; }
+  @media (max-width:640px) { th, td { padding:9px 10px; } header h1 small { display:none; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const API_URL = "https://deeyu-food-api.hoangluuanthaiost.workers.dev/api";
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const vnd = n => new Intl.NumberFormat("vi-VN").format(Math.round(n)) + "đ";
+const when = iso => { const d = new Date(iso); return iso && !isNaN(d) ? d.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : ""; };
+const EXTRA_RICE_RE = /cơm thêm|thêm cơm|phần cơm thêm/i;
+const KIND = { com: "Cơm", nuoc: "Nước", "": "Cơm + nước" };
+const oLabel = o => o.item + (o.size ? ` (${o.size})` : "") + (o.toppings ? " + " + o.toppings.split("|").join(", ") : "");
+
+const S = { key: sessionStorage.getItem("deeyu_admin") || "", data: null, tab: "sessions", q: "", open: new Set(), err: "" };
+
+async function load() {
+  const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "adminView", phone: "0000000000", key: S.key }) });
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error);
+  S.data = j.data; sessionStorage.setItem("deeyu_admin", S.key);
+}
+
+// Gom đơn theo phiên: từng người -> tiền món, trợ cấp, phải trả, trạng thái thanh toán
+function model() {
+  const d = S.data, pay = {};
+  d.payments.forEach(p => pay[p.session_id + "|" + p.phone] = p);
+  const menus = Object.fromEntries(d.menus.map(m => [m.session_id, m.n]));
+  const by = {};
+  d.sessions.forEach(s => by[s.id] = { s, people: {}, qty: 0, due: 0, got: 0, menu: menus[s.id] || 0 });
+  d.orders.forEach(o => {
+    const b = by[o.session_id]; if (!b) return;
+    const p = b.people[o.phone] ||= { phone: o.phone, name: o.name, rows: [], amount: 0, portions: 0, pay: pay[o.session_id + "|" + o.phone] || {} };
+    p.rows.push(o); p.amount += o.price * o.qty; b.qty += o.qty;
+    if (b.s.kind === "nuoc" ? o.type === "nuoc" : o.type === "com" && !EXTRA_RICE_RE.test(o.item)) p.portions += o.qty;
+  });
+  Object.values(by).forEach(b => Object.values(b.people).forEach(p => {
+    p.due = p.amount - Math.min(p.amount, (b.s.subsidy || 0) * p.portions);
+    b.due += p.due; if (p.pay.paid) b.got += p.due;
+  }));
+  return by;
+}
+
+const TABS = [
+  ["sessions", "Phiên", d => d.sessions.length], ["members", "Thành viên", d => d.members.length], ["orders", "Đơn", d => d.orders.length],
+  ["payments", "Thanh toán", d => d.payments.length], ["notices", "Thông báo", d => d.notices.length], ["presets", "Menu có sẵn", d => d.presets.length]
+];
+const match = (obj, q) => !q || Object.values(obj).some(v => String(v ?? "").toLowerCase().includes(q));
+
+function table(cols, rows, empty = "Không có dữ liệu") {
+  if (!rows.length) return `<div class="card"><div class="empty">${empty}</div></div>`;
+  return `<div class="card scroll"><table><thead><tr>${cols.map(c => `<th class="${c.num ? "num" : ""}">${c.h}</th>`).join("")}</tr></thead><tbody>
+    ${rows.map(r => `<tr>${cols.map(c => `<td class="${c.num ? "num" : ""} ${c.wide ? "wrap2" : ""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+function view(by) {
+  const d = S.data, q = S.q.trim().toLowerCase();
+  if (S.tab === "sessions") {
+    const list = Object.values(by).filter(b => !q || match(b.s, q) || Object.values(b.people).some(p => match({ n: p.name, ph: p.phone }, q)));
+    if (!list.length) return `<div class="card"><div class="empty">Không có phiên nào</div></div>`;
+    return `<div class="card">${list.map(b => {
+      const s = b.s, people = Object.values(b.people), pct = b.due ? Math.round(b.got / b.due * 100) : 0, open = S.open.has(s.id);
+      return `<div class="sess" data-sess="${esc(s.id)}">
+        <div class="top"><b>${esc(s.shop || "(chưa đặt tên quán)")}</b><span class="tag brand">${KIND[s.kind] || "Cơm + nước"}</span>
+          <span class="tag ${s.status === "open" ? "ok" : ""}">${s.status === "open" ? "Đang mở" : "Đã chốt"}</span>${s.prepay ? `<span class="tag warn">Trả trước</span>` : ""}</div>
+        <div class="meta"><span>${esc(s.owner_name)} · ${esc(s.owner_phone)}</span><span>${when(s.created)}</span><span>${people.length} người · ${b.qty} phần</span>
+          <span>Tổng ${vnd(b.due)}</span><span style="color:${b.got >= b.due && b.due ? "var(--ok)" : "var(--bad)"}">${b.due ? `Đã thu ${vnd(b.got)} (${pct}%)` : "Chưa có đơn"}</span>
+          ${s.subsidy ? `<span>Hỗ trợ ${vnd(s.subsidy)}/suất</span>` : ""}<span>Menu ${b.menu} món</span><span class="mute">#${esc(s.id)}</span></div>
+        ${b.due ? `<div class="prog"><i style="width:${pct}%"></i></div>` : ""}
+        ${open ? `<div class="detail" data-stop>${people.length ? people.map(p => `<div class="person"><div class="row"><b>${esc(p.name)} <span class="mute small">${esc(p.phone)}</span></b>
+            ${p.pay.paid ? `<span class="tag ok">Đã trả</span>` : p.pay.claimed ? `<span class="tag info">Báo đã chuyển</span>` : `<span class="tag bad">Chưa trả</span>`}
+            <b class="num">${vnd(p.due)}</b></div>${p.rows.map(o => `<div class="line">${o.qty}× ${esc(oLabel(o))} <span class="mute">${vnd(o.price)}</span>${o.note ? ` <span class="mute">– ${esc(o.note)}</span>` : ""}</div>`).join("")}</div>`).join("") : `<div class="empty">Chưa có đơn</div>`}
+          ${s.notes ? `<div class="person"><div class="line mute" style="white-space:pre-line">Lưu ý: ${esc(s.notes)}</div></div>` : ""}</div>` : ""}</div>`;
+    }).join("")}</div>`;
+  }
+  if (S.tab === "members") return table([{ h: "Tên", f: r => `<b>${esc(r.name)}</b>` }, { h: "SĐT", f: r => esc(r.phone) }, { h: "Tham gia", f: r => when(r.created) },
+    { h: "Ngân hàng nhận tiền", f: r => r.bank ? `${esc(r.bank)} ${esc(r.account)} <span class="mute">${esc(r.acc_name)}</span>` : `<span class="mute">—</span>` }], d.members.filter(r => match(r, q)));
+  if (S.tab === "orders") return table([{ h: "Thời gian", f: r => when(r.time) }, { h: "Người đặt", f: r => `<b>${esc(r.name)}</b><br><span class="mute small">${esc(r.phone)}</span>` },
+    { h: "Món", wide: true, f: r => `${esc(oLabel(r))}${r.note ? `<br><span class="mute small">${esc(r.note)}</span>` : ""}` }, { h: "SL", num: true, f: r => r.qty },
+    { h: "Đơn giá", num: true, f: r => vnd(r.price) }, { h: "Thành tiền", num: true, f: r => `<b>${vnd(r.price * r.qty)}</b>` }, { h: "Phiên", f: r => `<span class="mute">#${esc(r.session_id)}</span>` }],
+    d.orders.filter(r => match(r, q)));
+  if (S.tab === "payments") {
+    const who = Object.fromEntries(d.members.map(m => [m.phone, m.name])), shop = Object.fromEntries(d.sessions.map(s => [s.id, s.shop]));
+    return table([{ h: "Người", f: r => `<b>${esc(who[r.phone] || r.phone)}</b><br><span class="mute small">${esc(r.phone)}</span>` }, { h: "Phiên", f: r => `${esc(shop[r.session_id] || "")} <span class="mute">#${esc(r.session_id)}</span>` },
+      { h: "Trạng thái", f: r => r.paid ? `<span class="tag ok">Đã trả</span>` : `<span class="tag info">Báo đã chuyển</span>` }, { h: "Cập nhật", f: r => when(r.updated) }],
+      d.payments.filter(r => match({ ...r, n: who[r.phone], s: shop[r.session_id] }, q)));
+  }
+  if (S.tab === "notices") {
+    const who = Object.fromEntries(d.members.map(m => [m.phone, m.name]));
+    return table([{ h: "Thời gian", f: r => when(r.time) }, { h: "Gửi cho", f: r => `<b>${esc(who[r.phone] || r.phone)}</b>` }, { h: "Nội dung", wide: true, f: r => esc(r.text) },
+      { h: "Đã xem", f: r => r.seen ? `<span class="tag ok">Đã hiểu</span>` : `<span class="tag warn">Chưa xem</span>` }], d.notices.filter(r => match(r, q)), "Chưa có thông báo nào");
+  }
+  return table([{ h: "Quán", f: r => `<b>${esc(r.shop)}</b>` }, { h: "Loại", f: r => KIND[r.type] }, { h: "Độ dài menu", num: true, f: r => r.chars + " ký tự" }, { h: "Cập nhật", f: r => when(r.updated) }, { h: "Bởi", f: r => esc(r.by) }],
+    d.presets.filter(r => match(r, q)));
+}
+
+function csv() {
+  const d = S.data, rows = { sessions: d.sessions, members: d.members, orders: d.orders, payments: d.payments, notices: d.notices, presets: d.presets }[S.tab];
+  if (!rows.length) return;
+  const cols = Object.keys(rows[0]), cell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const text = "﻿" + [cols.join(","), ...rows.map(r => cols.map(c => cell(r[c])).join(","))].join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })); a.download = `deeyu-${S.tab}.csv`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+function draw() {
+  const root = $("#app");
+  if (!S.data) {
+    root.innerHTML = `<div class="login"><img src="img/logo-256.png" alt=""><h2>Quản trị dữ liệu</h2><p>Nhập mã quản trị để xem database (chỉ đọc)</p>
+      <input id="key" type="password" placeholder="Mã quản trị" autocomplete="current-password" autofocus><button class="btn primary" id="go">Vào xem</button><div class="err" id="err">${esc(S.err)}</div></div>`;
+    const go = async () => {
+      S.key = $("#key").value.trim(); if (!S.key) return;
+      $("#go").disabled = true; $("#go").textContent = "Đang tải…";
+      try { await load(); S.err = ""; } catch (e) { S.err = e.message; sessionStorage.removeItem("deeyu_admin"); }
+      draw();
+    };
+    $("#go").onclick = go; $("#key").onkeydown = e => { if (e.key === "Enter") go(); };
+    return;
+  }
+  const d = S.data, by = model(), all = Object.values(by);
+  const need = all.reduce((t, b) => t + b.due, 0), got = all.reduce((t, b) => t + b.got, 0);
+  root.innerHTML = `<header><div class="in"><img src="img/logo-256.png" alt=""><h1>Deeyu Food<small>Dữ liệu D1 · cập nhật ${when(d.at)}</small></h1>
+      <button class="btn" id="csv">Tải CSV</button><button class="btn primary" id="refresh">Làm mới</button><button class="btn" id="out">Thoát</button></div></header>
+    <div class="wrap">
+      <div class="stats"><div class="stat"><span>Thành viên</span><b>${d.members.length}</b></div><div class="stat"><span>Phiên</span><b>${d.sessions.length}</b></div>
+        <div class="stat"><span>Dòng đơn</span><b>${d.orders.length}</b></div><div class="stat ok"><span>Đã thu</span><b>${vnd(got)}</b></div>
+        <div class="stat ${need - got > 0 ? "bad" : ""}"><span>Chưa thu</span><b>${vnd(need - got)}</b></div></div>
+      <div class="bar"><div class="tabs">${TABS.map(([k, l, n]) => `<button data-t="${k}" class="${S.tab === k ? "on" : ""}">${l}<span class="n">${n(d)}</span></button>`).join("")}</div>
+        <div class="search"><input id="q" type="search" placeholder="Tìm theo tên, SĐT, món, quán…" value="${esc(S.q)}"></div></div>
+      <div id="view">${view(by)}</div>
+      <div class="foot">Chỉ đọc – muốn sửa dữ liệu dùng Console trong Cloudflare D1.</div></div>`;
+  wire(by);
+}
+function wire(by) {
+  document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { S.tab = b.dataset.t; S.q = ""; draw(); });
+  $("#q").oninput = e => { S.q = e.target.value; $("#view").innerHTML = view(by); bindSess(); };
+  $("#csv").onclick = csv; $("#out").onclick = () => { sessionStorage.removeItem("deeyu_admin"); S.data = null; S.key = ""; draw(); };
+  $("#refresh").onclick = async () => { $("#refresh").disabled = true; $("#refresh").textContent = "Đang tải…"; try { await load(); } catch (e) { alert(e.message); } draw(); };
+  bindSess();
+}
+function bindSess() {
+  document.querySelectorAll("[data-sess]").forEach(el => el.onclick = e => {
+    if (e.target.closest("[data-stop]")) return;
+    const id = el.dataset.sess; S.open.has(id) ? S.open.delete(id) : S.open.add(id);
+    $("#view").innerHTML = view(model()); bindSess();
+  });
+}
+
+(async () => { if (S.key) { try { await load(); } catch (e) { S.err = e.message; } } draw(); })();
+</script>
+</body>
+</html>

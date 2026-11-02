@@ -569,7 +569,8 @@ function viewLogin(stage = "", phone = "") {
       <div class="err" id="err" role="alert"></div>
       <button class="primary" id="go">${stage === "register" ? "Tạo tài khoản & vào" : stage ? "Vào" : `Tiếp tục ${I("right", "sm")}`}</button>
       ${stage ? `<button class="ghost plain w100 mt2" id="other">Dùng số khác</button>` : `<div class="mute center mt3" style="font-size:13px">Số mới sẽ được tạo tài khoản, chỉ cần nhập tên.</div>`}
-    </div>`;
+    </div>
+    <div class="center mt3"><a href="admin.html" class="mute" style="font-size:13px;text-decoration:none">${I("lock", "sm")} Đăng nhập quản trị</a></div>`;
   ($("#name") || $("#phone")).focus();
   if ($("#other")) $("#other").onclick = () => viewLogin();
   $("#go").onclick = async () => {
