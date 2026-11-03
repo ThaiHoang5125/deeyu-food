@@ -624,7 +624,8 @@ async function viewHome() {
     $("#tStatsN").textContent = toCollect > 0 ? `Chưa thu ${money(toCollect)}` : toPay > 0 ? `Cần trả ${money(toPay)}` : "Đã thanh toán đủ ✓";
   }).catch(() => {});
   try {
-    const list = await api("listSessions");
+    const t0 = new Date().setHours(0, 0, 0, 0);   // 0h hôm nay (giờ máy)
+    const list = (await api("listSessions")).filter(s => new Date(s.created) >= t0);
     $("#list").innerHTML = list.length ? list.map(s => {
       const open = s.status === "open", soon = open && s.deadline && new Date(s.deadline) - Date.now() < 30 * 60e3;
       return `
@@ -636,7 +637,7 @@ async function viewHome() {
           <div class="meta"><span>${I("users", "sm")} ${s.people ? `${s.people} người` : "Chưa ai đặt"}</span>${s.notices ? `<span class="tag locked">${s.notices} thông báo mới</span>` : ""}${s.deadline ? `<span class="${soon ? "warn" : ""}">${dlSpan(s)}</span>` : ""}${s.subsidy ? `<span class="gift">${I("gift", "sm")} ${money(s.subsidy)}/suất</span>` : ""}</div>
         </div>
       </div>`;
-    }).join("") : `<div class="card empty">${I("rice")}Chưa có phiên nào.<br>Bấm <b>Tạo phiên</b> ở trên để mở phiên đầu tiên.</div>`;
+    }).join("") : `<div class="card empty">${I("rice")}Hôm nay chưa có phiên nào.<br>Bấm <b>Tạo phiên</b> ở trên để mở phiên đầu tiên.</div>`;
     document.querySelectorAll("[data-id]").forEach(el => {
       el.onclick = () => go("session", el.dataset.id);
       el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); } };
