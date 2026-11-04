@@ -1614,7 +1614,9 @@ const SIZE_RE = /\s*\((2XL|XL|S|M|L|\d+ml)\)\s*$/i;
 const splitSize = n => { const m = n.match(SIZE_RE); return m ? { name: n.replace(SIZE_RE, "").trim(), size: m[1].toUpperCase() } : { name: n, size: "" }; };
 const isTopping = m => /topping/i.test(m.category || "");
 const menuLabel = m => m.name + (m.size ? ` (${m.size})` : "");
-const orderLabel = o => `${o.item}${o.size ? ` (${o.size})` : ""}${o.toppings ? " + " + o.toppings.split("|").join(", ") : ""}`;
+// Combo "Cơm N món" chỉ để tính tiền: có món chọn thì chỉ hiện các món chọn, không hiện tên combo
+const orderLabel = o => o.toppings && COMBO_RE.test(o.item) && /^(combo|cơm)/i.test(o.item) ? o.toppings.split("|").join(", ")
+  : `${o.item}${o.size ? ` (${o.size})` : ""}${o.toppings ? " + " + o.toppings.split("|").join(", ") : ""}`;
 function drinkOptions(type) {   // món gọi được (không tính topping), gom các size cùng tên
   const by = new Map();
   state.data.menu.filter(m => m.active && m.type === type && !isTopping(m)).forEach(m => {
