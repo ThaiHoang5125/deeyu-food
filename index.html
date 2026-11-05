@@ -1582,7 +1582,7 @@ async function claimPaid() {
 /* --- Quản lý (người đặt) --- */
 // Dòng cuối của tin nhắn: SĐT, địa điểm, giờ nhận ("giao liền" / "giao lúc 11:30"), cơm canh thêm (phiên cơm)
 const deliveryText = s => s.delivery === "now" ? "giao liền" : s.delivery ? `giao lúc ${isoToTime(s.delivery)}` : "";
-const summaryTail = s => [s.owner_phone, s.place, deliveryText(s)].filter(Boolean).join(", ") + "." + (s.extra_full && s.kind !== "nuoc" ? " Cơm canh thêm đầy đủ." : "");
+const summaryTail = s => [s.owner_phone, s.place, deliveryText(s)].filter(Boolean).join(", ") + "." + (s.extra_full && s.kind !== "nuoc" ? " Cơm thêm đầy đủ." : "");
 // Đơn tính vào tin nhắn: đặt trước chỉ tính đơn đã chuyển khoản
 const summaryOrders = () => state.data.session.prepay ? state.data.orders.filter(o => o.paid) : state.data.orders;
 function buildSummary() {
@@ -2131,8 +2131,8 @@ function drawManage() {
         <div id="noteSel" style="margin-bottom:8px"></div>
         ${state.data.session.prepay ? `<div class="mute" style="margin-bottom:8px">Phiên yêu cầu chuyển khoản trước: tin nhắn chỉ tính đơn đã đánh dấu "Đã trả".</div>` : ""}
         <button class="ghost w100" id="copy">${I("copy", "sm")} Copy tin nhắn</button>
-        ${S.kind === "nuoc" ? "" : `<label class="chk mt3"><input type="checkbox" id="extraFull" ${S.extra_full ? "checked" : ""}> Cơm canh thêm đầy đủ</label>
-        <div class="mute">Tick nếu cần – tin nhắn sẽ thêm dòng "Cơm canh thêm đầy đủ."</div>`}
+        ${S.kind === "nuoc" ? "" : `<label class="chk mt3"><input type="checkbox" id="extraFull" ${S.extra_full ? "checked" : ""}> Cơm thêm đầy đủ</label>
+        <div class="mute">Tick nếu cần – tin nhắn sẽ thêm dòng "Cơm thêm đầy đủ."</div>`}
       </div>
       <div class="card">
         <h2>Tổng hợp đơn kèm tên người</h2>
