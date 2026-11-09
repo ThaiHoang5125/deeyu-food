@@ -745,18 +745,18 @@ const cellPrice = v => {
 // Tiêu đề cột có thể nằm ở BẤT KỲ hàng nào (file nhiều bảng: mỗi mục một bảng có hàng tiêu đề riêng). Hàng tiêu đề có "Tên món" cùng "Giá"/"Size"/cột size (S, M, L, XL, 2XL…);
 // "Mục/Nhóm" tuỳ chọn. Dòng chỉ có một ô chữ = tên mục (áp cho các món sau nó). Hàng trước tiêu đề đầu tiên (tên file, số Zalo…) bỏ qua.
 function excelToMenuText(rows) {
-  const SIZE_RE = /^(xs|s|m|l|xl|xxl|\dxl)$/, out = [];
+  const SIZE_RE = /^(size )?(xs|s|m|l|xl|xxl|\dxl)$|^size \d/, out = [];   // "Size L" hoặc "Size 1 (L / 500ml)"
   let cols = null, cat = "", catOut = null;
   rows.forEach(raw => {
     const r = raw.map(c => typeof c === "string" ? c.trim() : c), cells = r.filter(c => c !== "" && c != null);
     if (!cells.length) return;
     const head = r.map(c => fold(c));
     const find = re => head.findIndex(h => re.test(h));
-    const iName = find(/^(ten|ten mon|mon|name|item)$/);
+    const iName = find(/^(ten( mon| topping)?|mon|name|item)$/);
     const sizeCols = head.map((h, i) => SIZE_RE.test(h) ? i : -1).filter(i => i >= 0);
     const priceCols = head.map((h, i) => /^(gia|price|don gia)\b/.test(h) ? i : -1).filter(i => i >= 0);
     if (iName >= 0 && (sizeCols.length || priceCols.length)) {   // hàng tiêu đề mới
-      cols = { name: iName, cat: find(/^(muc|nhom|loai|danh muc|category)$/), size: find(/^(size|co|kich co)$/), sizeCols, priceCols, labels: head.map(h => h.toUpperCase()) };
+      cols = { name: iName, cat: find(/^(muc|nhom|loai|danh muc|category)$/), size: find(/^(size|co|kich co)$/), sizeCols, priceCols, labels: head.map(h => (h.match(/^size \d.*?\(([^/)]+)/)?.[1] || h.replace(/^size /, "")).trim().toUpperCase()) };
       return;
     }
     if (cells.length === 1 && typeof cells[0] === "string") { if (cols || !/[:|]/.test(cells[0])) cat = cleanHeading(cells[0]); return; }   // tên mục (không phải dòng ghi chú có ":" "|")
