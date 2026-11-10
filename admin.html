@@ -21,7 +21,7 @@
   button, input { font:inherit; color:inherit; }
   .wrap { max-width:1100px; margin:0 auto; padding:0 16px 48px; }
   header { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
-  header .in { max-width:1100px; margin:0 auto; padding:10px 16px; display:flex; align-items:center; gap:12px; }
+  header .in { max-width:1100px; margin:0 auto; padding:10px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   header img { width:34px; height:34px; border-radius:9px; }
   header h1 { font-size:17px; margin:0; flex:1; letter-spacing:-.2px; }
   header h1 small { display:block; font-weight:500; font-size:12px; color:var(--mute); letter-spacing:0; }
@@ -104,7 +104,7 @@
   .dbody { margin:12px 0 4px; }
   .fgrid { display:grid; grid-template-columns:150px 1fr; gap:8px 10px; align-items:start; }
   .fgrid label { font-size:13px; color:var(--mute); padding-top:8px; }
-  .fgrid input[type=text], .fgrid input[type=number], .fgrid input[type=datetime-local], .fgrid select, .fgrid textarea { width:100%; padding:8px 10px; border:1.5px solid var(--line2); border-radius:10px; background:#fff; }
+  .fgrid input[type=text], .fgrid input[type=password], .fgrid input[type=number], .fgrid input[type=datetime-local], .fgrid select, .fgrid textarea { width:100%; padding:8px 10px; border:1.5px solid var(--line2); border-radius:10px; background:#fff; }
   .fgrid input[type=checkbox] { width:20px; height:20px; margin-top:8px; }
   .row2 { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; flex-wrap:wrap; }
   .bar select, .bar label.chk { padding:7px 10px; border:1.5px solid var(--line2); border-radius:10px; background:#fff; font-size:13.5px; font-weight:600; }
@@ -124,14 +124,17 @@ const EXTRA_RICE_RE = /cơm thêm|thêm cơm|phần cơm thêm/i;
 const KIND = { com: "Cơm", nuoc: "Nước", "": "Cơm + nước" };
 const oLabel = o => o.item + (o.size ? ` (${o.size})` : "") + (o.toppings ? " + " + o.toppings.split("|").join(", ") : "");
 
-const S = { key: sessionStorage.getItem("deeyu_admin") || "", data: null, tab: "sessions", days: 30, debt: false, edit: false, q: "", open: new Set(), err: "" };
+const S = { token: sessionStorage.getItem("deeyu_admin_t") || "", me: null, admins: [], data: null, tab: "sessions", days: 30, debt: false, edit: false, q: "", open: new Set(), err: "", busy: false };
+const ROLES = { owner: "Chủ sở hữu", admin: "Quản trị", viewer: "Chỉ xem" };
+const clearAuth = () => { sessionStorage.removeItem("deeyu_admin_t"); S.token = ""; S.me = null; S.data = null; S.admins = []; S.edit = false; S.tab = "sessions"; S.q = ""; S.open.clear(); S.inited = false; };
 
 async function load() {
-  const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "adminView", phone: "0000000000", key: S.key, days: S.days }) });
-  const j = await res.json();
-  if (!j.ok) throw new Error(j.error);
-  S.data = j.data; sessionStorage.setItem("deeyu_admin", S.key);
+  S.data = await call({ action: "adminView", days: S.days }); S.me = S.data.me;
+  if (S.me.role === "viewer") S.edit = false;
+  if (S.me.role === "owner") await loadAdmins();
+  else { S.admins = []; if (S.tab === "admins") S.tab = "sessions"; }
 }
+const loadAdmins = async () => { S.admins = (await call({ action: "adminList" })).admins; };
 
 // ---- ghi dữ liệu (sửa / thêm / xóa / hoàn tác) qua adminWrite / adminUndo ----
 const PK = { members: ["phone"], sessions: ["id"], orders: ["id"], payments: ["session_id", "phone"], notices: ["id"], presets: ["id"], menu: ["id"] };
@@ -165,9 +168,14 @@ const labelOf = (tb, r) => ({ orders: `${r.qty}× ${r.item} của ${r.name || r.
   notices: "thông báo này", presets: `menu có sẵn "${r.shop}"` }[tb] || "dòng này");
 
 async function call(body) {
-  const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ phone: "0000000000", key: S.key, ...body }) });
+  const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: S.token, ...body }) });
   const j = await res.json();
-  if (!j.ok) throw new Error(j.error);
+  if (!j.ok) {
+    const message = String(j.error || "Không thể thực hiện yêu cầu");
+    if (message.startsWith("ADMINAUTH")) { clearAuth(); S.err = message; draw(); }
+    throw new Error(message);
+  }
+  return j.data;
 }
 const write = (table, op, rowKey, row) => call({ action: "adminWrite", table, op, rowKey, row });
 
@@ -188,6 +196,51 @@ function dialog(title, html, buttons, getVal) {
   });
 }
 const choose = (title, opts) => dialog(title, "", `<button class="btn" data-v="">Hủy</button>` + opts.map(([l, v]) => `<button class="btn primary" data-v="${v}">${l}</button>`).join(""));
+
+async function changePassword(required = false) {
+  while (S.token) {
+    const value = await dialog("Đổi mật khẩu", `<p>${required ? "Bạn phải đổi mật khẩu trước khi vào trang quản trị." : "Mật khẩu mới cần ít nhất 10 ký tự."}</p><div class="fgrid"><label for="oldPassword">Mật khẩu hiện tại</label><input id="oldPassword" type="password" autocomplete="current-password"><label for="newPassword">Mật khẩu mới</label><input id="newPassword" type="password" autocomplete="new-password" minlength="10"><label for="againPassword">Nhập lại mật khẩu mới</label><input id="againPassword" type="password" autocomplete="new-password" minlength="10"></div>`, `<button class="btn" data-v="">Hủy</button><button class="btn primary" data-v="1">Lưu</button>`, d => {
+      const oldPassword = $("#oldPassword", d).value, newPassword = $("#newPassword", d).value;
+      if (!oldPassword) return { error: "Nhập mật khẩu hiện tại" };
+      if (newPassword.length < 10) return { error: "Mật khẩu mới cần ít nhất 10 ký tự" };
+      if (newPassword !== $("#againPassword", d).value) return { error: "Mật khẩu mới không khớp" };
+      return { oldPassword, newPassword };
+    });
+    if (!value) return false;
+    if (!S.token) return false;
+    try { await call({ action: "adminChangePassword", ...value }); return true; }
+    catch (e) { if (!S.token) return false; alert(e.message); }
+  }
+  return false;
+}
+const credentials = r => dialog("Thông tin đăng nhập — Chỉ hiện một lần", `<div class="fgrid"><label>Tên</label><b>${esc(r.name)}</b><label>Mật khẩu tạm</label><code style="user-select:all">${esc(r.password)}</code><label>Khóa 2FA</label><code style="user-select:all">${esc(String(r.secret).replace(/(.{4})(?=.)/g, "$1 "))}</code></div><p><a href="${esc(String(r.uri).startsWith("otpauth://") ? r.uri : "")}">Mở trong app xác thực</a></p><p>Người dùng phải nhập khóa này vào Google Authenticator / Authy (Thêm tài khoản → Nhập khóa thiết lập), rồi đăng nhập và đổi mật khẩu.</p>`, `<button class="btn primary" data-v="1">Đã lưu lại</button>`);
+const admBtn = (op, r, label) => `<button class="btn mini" data-adm="${op}" data-id="${esc(r.id)}">${label}</button>`;
+
+document.addEventListener("click", async e => {
+  const el = e.target.closest("[data-adm]"); if (!el || S.me?.role !== "owner" || el.disabled) return;
+  const op = el.dataset.adm, y = scrollY; el.disabled = true;
+  try {
+    let result;
+    if (op === "create") {
+      const value = await dialog("Thêm quản trị viên", `<div class="fgrid"><label for="admName">Tên</label><input id="admName" type="text" autocomplete="off"><label for="admRole">Vai trò</label><select id="admRole">${Object.entries(ROLES).map(([v, l]) => `<option value="${v}" ${v === "admin" ? "selected" : ""}>${l}</option>`).join("")}</select></div>`, `<button class="btn" data-v="">Hủy</button><button class="btn primary" data-v="1">Tạo</button>`, d => {
+        const name = $("#admName", d).value.trim(); return name ? { name, role: $("#admRole", d).value } : { error: "Nhập tên quản trị viên" };
+      });
+      if (!value || !S.token) return;
+      result = await call({ action: "adminCreate", ...value });
+    } else {
+      const r = S.admins.find(a => String(a.id) === el.dataset.id); if (!r) return;
+      const payload = { action: "adminUpdate", id: r.id, op };
+      if (op === "role") { payload.role = await choose("Đổi vai trò của " + r.name, Object.entries(ROLES).map(([v, l]) => [l, v])); if (!payload.role) return; }
+      if (op === "active") payload.active = !r.active;
+      const label = { role: "Đổi vai trò", active: r.active ? "Vô hiệu" : "Kích hoạt", reset: "Cấp lại mật khẩu + 2FA", kick: "Đăng xuất mọi phiên", delete: "Xóa" }[op];
+      if (!confirm(`${label} cho ${r.name}?`) || !S.token) return;
+      result = await call(payload);
+    }
+    if (op === "create" || op === "reset") await credentials(result);
+    await load(); draw(); scrollTo(0, y);
+  } catch (err) { alert(err.message); }
+  finally { el.disabled = false; }
+});
 
 // Form theo từng ô. Thêm mới: trả đủ dòng (gồm các khóa ẩn trong obj); sửa: chỉ trả các cột đã đổi. null nếu hủy
 function editForm(title, tb, obj, isNew) {
@@ -270,9 +323,10 @@ function model() {
   return by;
 }
 
-const TABS = [
+const TABS = () => [
   ["sessions", "Phiên", d => d.sessions.length], ["members", "Thành viên", d => d.members.length],
-  ["notices", "Thông báo", d => d.notices.length], ["presets", "Menu có sẵn", d => d.presets.length], ["log", "Nhật ký", d => d.log.length]
+  ["notices", "Thông báo", d => d.notices.length], ["presets", "Menu có sẵn", d => d.presets.length], ["log", "Nhật ký", d => d.log.length],
+  ...(S.me?.role === "owner" ? [["admins", "Quản trị viên", () => S.admins.length]] : [])
 ];
 const match = (obj, q) => !q || Object.values(obj).some(v => String(v ?? "").toLowerCase().includes(q));
 
@@ -342,9 +396,14 @@ function view(by) {
       { h: "Đã xem", f: r => r.seen ? `<span class="tag ok">Đã hiểu</span>` : `<span class="tag warn">Chưa xem</span>` },
       { h: "", f: r => btn("edit", "notices", r, "Sửa") + btn("del", "notices", r, "Xóa") }], d.notices.filter(r => match(r, q)), "Chưa có thông báo nào");
   }
-  if (S.tab === "log") return table([{ h: "Thời gian", f: r => when(r.time) }, { h: "Thao tác", f: r => `<span class="tag ${r.op === "delete" ? "bad" : r.op === "insert" ? "ok" : "info"}">${{ insert: "Thêm", update: "Sửa", delete: "Xóa" }[r.op]}</span> ${esc(r.tbl)}` },
-    { h: "Nội dung", wide: true, f: r => esc(logText(r)) }, { h: "IP", f: r => `<span class="mute small">${esc(r.ip)}</span>` },
-    { h: "", f: r => r.undone ? `<span class="tag">Đã hoàn tác</span>` : `<button class="btn mini" data-stop data-act="undo" data-id="${r.id}">Hoàn tác</button>` }], d.log.filter(r => match(r, q)), "Chưa có thao tác nào");
+  if (S.tab === "admins" && S.me.role === "owner") return table([{ h: "Tên", f: r => `<b>${esc(r.name)}</b>` },
+    { h: "Vai trò", f: r => `<span class="tag brand">${esc(ROLES[r.role] || r.role)}</span>` },
+    { h: "Trạng thái", f: r => `<span class="tag ${r.active ? "ok" : "bad"}">${r.active ? "Hoạt động" : "Đã vô hiệu"}</span>${r.must_change ? ` <span class="tag warn">Chờ đổi mật khẩu</span>` : ""}` },
+    { h: "Đăng nhập gần nhất", f: r => when(r.last_login) }, { h: "Số phiên", num: true, f: r => esc(r.sessions) },
+    { h: "", f: r => admBtn("role", r, "Đổi vai trò") + admBtn("active", r, r.active ? "Vô hiệu" : "Kích hoạt") + admBtn("reset", r, "Cấp lại mật khẩu + 2FA") + admBtn("kick", r, "Đăng xuất mọi phiên") + admBtn("delete", r, "Xóa") }], S.admins.filter(r => match(r, q)));
+  if (S.tab === "log") return table([{ h: "Thời gian", f: r => when(r.time) }, { h: "Thao tác", f: r => `<span class="tag ${r.op === "delete" ? "bad" : r.op === "insert" ? "ok" : "info"}">${esc({ insert: "Thêm", update: "Sửa", delete: "Xóa", admin: "Quản trị" }[r.op] || r.op)}</span> ${esc(r.tbl)}` },
+    { h: "Nội dung", wide: true, f: r => esc(logText(r)) }, { h: "Ai", f: r => `${esc(r.admin || r.ip)}<div class="mute small">${esc(r.ip)}</div>` },
+    { h: "", f: r => !["insert", "update", "delete"].includes(r.op) ? "" : r.undone ? `<span class="tag">Đã hoàn tác</span>` : `<button class="btn mini" data-stop data-act="undo" data-id="${esc(r.id)}">Hoàn tác</button>` }], d.log.filter(r => match(r, q)), "Chưa có thao tác nào");
   return table([{ h: "Quán", f: r => `<b>${esc(r.shop)}</b>` }, { h: "Loại", f: r => KIND[r.type] }, { h: "Độ dài menu", num: true, f: r => r.chars + " ký tự" }, { h: "Cập nhật", f: r => when(r.updated) }, { h: "Bởi", f: r => esc(r.by) }, { h: "", f: r => btn("edit", "presets", r, "Sửa") + btn("del", "presets", r, "Xóa") }],
     d.presets.filter(r => match(r, q)));
 }
@@ -352,6 +411,7 @@ function view(by) {
 const J = x => { try { return JSON.parse(x); } catch { return null; } };
 function logText(l) {
   const b = J(l.before), a = J(l.after), nm = r => r ? (r.shop || r.name || r.item || r.text || "") : "";
+  if (l.op === "admin") return a?.text || "";
   if (l.op === "insert") return nm(a) || Object.values(J(l.row_key) || {}).join("/");
   if (l.op === "update") return `${nm(b.row)}: ` + Object.keys(a).map(c => `${c} ${b.row[c] ?? "—"} → ${a[c]}`).join(" · ");
   return nm(b.row) + (b.orders ? ` (kèm ${b.orders.length} đơn, ${b.menu.length} món menu)` : "");
@@ -359,7 +419,7 @@ function logText(l) {
 // Tab Phiên: mỗi dòng CSV là một dòng món, kèm thông tin phiên + trạng thái thanh toán của người đặt (theo ô tìm kiếm đang lọc)
 function csvRows() {
   const d = S.data, q = S.q.trim().toLowerCase();
-  if (S.tab !== "sessions") return { members: d.members, notices: d.notices, presets: d.presets, log: d.log }[S.tab];
+  if (S.tab !== "sessions") return { members: d.members, notices: d.notices, presets: d.presets, log: d.log, admins: S.admins }[S.tab];
   const out = [];
   sessionList(model()).filter(b => !q || sessText(b).includes(q)).forEach(b => Object.values(b.people).forEach(p => p.rows.slice().reverse().forEach(o => {
     const s = b.s || {};
@@ -381,26 +441,36 @@ function csv() {
 
 function draw() {
   const root = $("#app");
+  if (!S.data || S.me?.role === "viewer") S.edit = false;
+  document.body.classList.toggle("edit", S.edit);
   if (!S.data) {
-    root.innerHTML = `<div class="login"><img src="img/logo-256.png" alt=""><h2>Quản trị dữ liệu</h2><p>Nhập mã quản trị để xem và chỉnh sửa database</p>
-      <input id="key" type="password" placeholder="Mã quản trị" autocomplete="current-password" autofocus><button class="btn primary" id="go">Vào</button><div class="err" id="err">${esc(S.err)}</div></div>`;
+    root.innerHTML = `<div class="login"><img src="img/logo-256.png" alt=""><h2>Quản trị dữ liệu</h2><p>Đăng nhập bằng tài khoản và mã xác thực từ ứng dụng 2FA</p>
+      <input id="loginName" type="text" placeholder="Tên" aria-label="Tên" autocomplete="username" autofocus><input id="loginPassword" type="password" placeholder="Mật khẩu" aria-label="Mật khẩu" autocomplete="current-password"><input id="loginCode" type="text" placeholder="Mã xác thực" aria-label="Mã xác thực" inputmode="numeric" maxlength="6" autocomplete="one-time-code"><button class="btn primary" id="go" ${S.busy ? "disabled" : ""}>${S.busy ? "Đang tải…" : "Vào"}</button><div class="err" id="err">${esc(S.err)}</div></div>`;
     const go = async () => {
-      S.key = $("#key").value.trim(); if (!S.key) return;
+      if (S.busy) return;
+      const name = $("#loginName").value.trim(), password = $("#loginPassword").value, code = $("#loginCode").value.trim();
+      if (!name || !password || !/^\d{6}$/.test(code)) { S.err = "Nhập tên, mật khẩu và mã xác thực gồm 6 chữ số"; $("#err").textContent = S.err; return; }
+      S.busy = true; S.err = ""; $("#err").textContent = "";
       $("#go").disabled = true; $("#go").textContent = "Đang tải…";
-      try { await load(); S.err = ""; } catch (e) { S.err = e.message; sessionStorage.removeItem("deeyu_admin"); }
+      try {
+        const r = await call({ action: "adminLogin", name, password, code });
+        S.token = r.token; S.me = { name: r.name, role: r.role };
+        if (r.mustChange && !await changePassword(true)) { if (S.token) { try { await call({ action: "adminLogout" }); } catch {} clearAuth(); } }
+        else { sessionStorage.setItem("deeyu_admin_t", S.token); await load(); }
+      } catch (e) { S.err = e.message; clearAuth(); }
+      S.busy = false;
       draw();
     };
-    $("#go").onclick = go; $("#key").onkeydown = e => { if (e.key === "Enter") go(); };
+    $("#go").onclick = go; document.querySelectorAll(".login input").forEach(el => el.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
     return;
   }
-  document.body.classList.toggle("edit", S.edit);
   const d = S.data, by = model(), all = Object.values(by);
   if (!S.inited) { S.inited = true; if (d.sessions[0]) S.open.add(d.sessions[0].id); }
   const sum = k => all.reduce((t, b) => t + b[k], 0);
   const need = sum("due"), got = sum("got"), claimed = sum("claimed"), todo = need - got - claimed;
   const unpaidP = sum("unpaidPeople"), claimedP = sum("claimedPeople"), pct = need ? Math.round(got / need * 100) : 0;
   root.innerHTML = `<header><div class="in"><img src="img/logo-256.png" alt=""><h1>Deeyu Food<small>Dữ liệu D1 · cập nhật ${when(d.at)}</small></h1>
-      <button class="btn ${S.edit ? "on" : ""}" id="editmode">Chế độ sửa: ${S.edit ? "Bật" : "Tắt"}</button><button class="btn" id="csv">Tải CSV</button><button class="btn primary" id="refresh">Làm mới</button><button class="btn" id="out">Thoát</button></div></header>
+      <span class="small">${esc(S.me.name)} · ${esc(ROLES[S.me.role] || S.me.role)}</span>${S.me.role !== "viewer" ? `<button class="btn ${S.edit ? "on" : ""}" id="editmode">Chế độ sửa: ${S.edit ? "Bật" : "Tắt"}</button>` : ""}<button class="btn" id="csv">Tải CSV</button><button class="btn primary" id="refresh">Làm mới</button><button class="btn" id="password">Đổi mật khẩu</button><button class="btn" id="out">Thoát</button></div></header>
     <div class="wrap">
       <div class="stats"><div class="stat"><span>Thành viên</span><b>${d.members.length}</b></div><div class="stat"><span>Phiên</span><b>${d.sessions.length}</b></div>
         <div class="stat"><span>Dòng đơn</span><b>${d.orders.length}</b></div></div>
@@ -409,23 +479,24 @@ function draw() {
           <div class="stat info"><span>Chờ xác nhận <small>${claimedP} người báo đã chuyển</small></span><b>${vnd(claimed)}</b></div>
           <div class="stat ${todo > 0 ? "bad" : ""}"><span>Chưa chuyển <small>${unpaidP} người</small></span><b>${vnd(todo)}</b></div></div>
         <div class="prog"><i style="width:${pct}%"></i></div></div>
-      <div class="bar"><div class="tabs">${TABS.map(([k, l, n]) => `<button data-t="${k}" class="${S.tab === k ? "on" : ""}">${l}<span class="n">${n(d)}</span></button>`).join("")}</div>
+      <div class="bar"><div class="tabs">${TABS().map(([k, l, n]) => `<button data-t="${k}" class="${S.tab === k ? "on" : ""}">${l}<span class="n">${n(d)}</span></button>`).join("")}</div>
         <select id="days" title="Khoảng thời gian của phiên">${[[1, "Hôm nay"], [7, "7 ngày"], [30, "30 ngày"], [0, "Tất cả"]].map(([v, l]) => `<option value="${v}" ${S.days === v ? "selected" : ""}>${l}</option>`).join("")}</select>
-        ${S.tab === "sessions" ? `<label class="chk"><input type="checkbox" id="debt" ${S.debt ? "checked" : ""}> Còn nợ</label>` : ""}${TPL[S.tab] ? addBtn(S.tab, "+ Thêm") : ""}${S.tab === "sessions" ? `<button class="btn" id="openAll">Mở hết</button><button class="btn" id="closeAll">Thu gọn</button>` : ""}
+        ${S.tab === "sessions" ? `<label class="chk"><input type="checkbox" id="debt" ${S.debt ? "checked" : ""}> Còn nợ</label>` : ""}${TPL[S.tab] ? addBtn(S.tab, "+ Thêm") : ""}${S.tab === "admins" && S.me.role === "owner" ? `<button class="btn" data-adm="create">+ Thêm quản trị viên</button>` : ""}${S.tab === "sessions" ? `<button class="btn" id="openAll">Mở hết</button><button class="btn" id="closeAll">Thu gọn</button>` : ""}
         <div class="search"><input id="q" type="search" placeholder="Tìm theo tên, SĐT, món, quán…" value="${esc(S.q)}"></div></div>
       <div id="view">${view(by)}</div>
-      <div class="foot">Bật “Chế độ sửa” để sửa / xóa / thêm. Mọi thay đổi ghi thẳng vào database và có trong tab Nhật ký (hoàn tác được).</div></div>`;
+      <div class="foot">${S.me.role === "viewer" ? "Tài khoản chỉ xem dữ liệu." : "Bật “Chế độ sửa” để sửa / xóa / thêm."} Mọi thay đổi ghi thẳng vào database và có trong tab Nhật ký. Chỉ thao tác thêm / sửa / xóa dữ liệu có thể hoàn tác.</div></div>`;
   wire(by);
 }
 function wire(by) {
-  document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { S.tab = b.dataset.t; S.q = ""; draw(); });
+  document.querySelectorAll("[data-t]").forEach(b => b.onclick = async () => { const tab = b.dataset.t; if (tab === "admins") { try { await loadAdmins(); } catch (e) { alert(e.message); return; } } if (!S.data) return; S.tab = tab; S.q = ""; draw(); });
   $("#q").oninput = e => { S.q = e.target.value; $("#view").innerHTML = view(by); bindSess(); };
   if ($("#openAll")) { $("#openAll").onclick = () => { sessionList(by).forEach(b => S.open.add(b.id)); $("#view").innerHTML = view(by); bindSess(); };
     $("#closeAll").onclick = () => { S.open.clear(); $("#view").innerHTML = view(by); bindSess(); }; }
-  $("#editmode").onclick = () => { S.edit = !S.edit; document.body.classList.toggle("edit", S.edit); $("#editmode").classList.toggle("on", S.edit); $("#editmode").textContent = "Chế độ sửa: " + (S.edit ? "Bật" : "Tắt"); };
+  if ($("#editmode")) $("#editmode").onclick = () => { S.edit = !S.edit; document.body.classList.toggle("edit", S.edit); $("#editmode").classList.toggle("on", S.edit); $("#editmode").textContent = "Chế độ sửa: " + (S.edit ? "Bật" : "Tắt"); };
   $("#days").onchange = async e => { S.days = +e.target.value; try { await load(); } catch (err) { alert(err.message); } draw(); };
   if ($("#debt")) $("#debt").onchange = e => { S.debt = e.target.checked; $("#view").innerHTML = view(by); bindSess(); };
-  $("#csv").onclick = csv; $("#out").onclick = () => { sessionStorage.removeItem("deeyu_admin"); S.data = null; S.key = ""; draw(); };
+  $("#csv").onclick = csv; $("#out").onclick = async () => { $("#out").disabled = true; try { await call({ action: "adminLogout" }); } catch {} clearAuth(); S.err = ""; draw(); };
+  $("#password").onclick = async () => { if (await changePassword()) { try { await load(); } catch (e) { alert(e.message); } draw(); } };
   $("#refresh").onclick = async () => { $("#refresh").disabled = true; $("#refresh").textContent = "Đang tải…"; try { await load(); } catch (e) { alert(e.message); } draw(); };
   bindSess();
 }
@@ -437,7 +508,7 @@ function bindSess() {
   });
 }
 
-(async () => { if (S.key) { try { await load(); } catch (e) { S.err = e.message; } } draw(); })();
+(async () => { if (S.token) { try { await load(); } catch (e) { S.err = e.message; } } draw(); })();
 </script>
 </body>
 </html>
