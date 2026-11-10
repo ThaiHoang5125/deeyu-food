@@ -97,8 +97,19 @@
   .hidden { display:none !important; }
   @media (max-width:640px) { th, td { padding:9px 10px; } header h1 small { display:none; } }
 .mini{padding:2px 8px;font-size:12px;margin-left:4px}.mini.del{color:var(--bad)}
-dialog{border:1px solid #ccc;border-radius:12px;padding:16px;width:min(560px,94vw);background:var(--card,#fff);color:inherit}
-dialog textarea{width:100%;height:260px;font:12px/1.4 monospace;box-sizing:border-box}dialog .row2{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+  body:not(.edit) [data-act], body:not(.edit) [data-edit] { display:none !important; }
+  .btn.on { background:var(--warn2); border-color:var(--warn); color:var(--warn); }
+  dialog { border:1px solid var(--line2); border-radius:var(--r); padding:16px; width:min(600px,94vw); background:#fff; color:var(--ink); max-height:92vh; overflow:auto; }
+  dialog::backdrop { background:rgba(31,26,20,.45); }
+  .dbody { margin:12px 0 4px; }
+  .fgrid { display:grid; grid-template-columns:150px 1fr; gap:8px 10px; align-items:start; }
+  .fgrid label { font-size:13px; color:var(--mute); padding-top:8px; }
+  .fgrid input[type=text], .fgrid input[type=number], .fgrid input[type=datetime-local], .fgrid select, .fgrid textarea { width:100%; padding:8px 10px; border:1.5px solid var(--line2); border-radius:10px; background:#fff; }
+  .fgrid input[type=checkbox] { width:20px; height:20px; margin-top:8px; }
+  .row2 { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; flex-wrap:wrap; }
+  .bar select, .bar label.chk { padding:7px 10px; border:1.5px solid var(--line2); border-radius:10px; background:#fff; font-size:13.5px; font-weight:600; }
+  details.person summary { cursor:pointer; font-weight:600; font-size:13.5px; }
+  @media (max-width:640px) { .fgrid { grid-template-columns:1fr; } .fgrid label { padding-top:0; } }
 </style>
 </head>
 <body>
@@ -113,86 +124,134 @@ const EXTRA_RICE_RE = /cơm thêm|thêm cơm|phần cơm thêm/i;
 const KIND = { com: "Cơm", nuoc: "Nước", "": "Cơm + nước" };
 const oLabel = o => o.item + (o.size ? ` (${o.size})` : "") + (o.toppings ? " + " + o.toppings.split("|").join(", ") : "");
 
-const S = { key: sessionStorage.getItem("deeyu_admin") || "", data: null, tab: "sessions", q: "", open: new Set(), err: "" };
+const S = { key: sessionStorage.getItem("deeyu_admin") || "", data: null, tab: "sessions", days: 30, debt: false, edit: false, q: "", open: new Set(), err: "" };
 
 async function load() {
-  const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "adminView", phone: "0000000000", key: S.key }) });
+  const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "adminView", phone: "0000000000", key: S.key, days: S.days }) });
   const j = await res.json();
   if (!j.ok) throw new Error(j.error);
   S.data = j.data; sessionStorage.setItem("deeyu_admin", S.key);
 }
 
-// ---- ghi dữ liệu (sửa / thêm / xóa) qua action adminWrite ----
-const PK = { members: ["phone"], sessions: ["id"], orders: ["id"], payments: ["session_id", "phone"], notices: ["id"], presets: ["id"] };
+// ---- ghi dữ liệu (sửa / thêm / xóa / hoàn tác) qua adminWrite / adminUndo ----
+const PK = { members: ["phone"], sessions: ["id"], orders: ["id"], payments: ["session_id", "phone"], notices: ["id"], presets: ["id"], menu: ["id"] };
 const nowIso = () => new Date().toISOString();
 const keyOf = (t, r) => Object.fromEntries(PK[t].map(c => [c, r[c]]));
 const btn = (a, t, r, l) => `<button class="btn mini ${a === "del" ? "del" : ""}" data-stop data-act="${a}" data-tb="${t}" data-k='${esc(JSON.stringify(keyOf(t, r)))}'>${l}</button>`;
-const addBtn = (t, l, tpl) => `<button class="btn mini" data-stop data-act="add" data-tb="${t}" data-tpl='${esc(JSON.stringify(tpl || TPL[t] || {}))}'>${l}</button>`;
-const TPL = { members: { phone: "", name: "", created: nowIso() }, sessions: { kind: "com", status: "open", shop: "", owner_phone: "", owner_name: "", created: nowIso() },
-  notices: { session_id: "", phone: "", time: nowIso(), text: "", seen: 0 },
-  presets: { type: "com", shop: "", text: "", updated: nowIso(), by: "admin" } };
-async function write(table, op, key, row, sid) {
-  const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "adminWrite", phone: "0000000000", key: S.key, table, op, rowKey: key, row, sid }) });
+const addBtn = (t, l, tpl) => `<button class="btn mini" data-stop data-act="add" data-tb="${t}" data-tpl='${esc(JSON.stringify(tpl || TPL[t]()))}'>${l}</button>`;
+// Dòng mẫu khi bấm "+ Thêm" (khóa phiên / thời gian điền sẵn)
+const TPL = {
+  members: () => ({ phone: "", name: "", created: nowIso() }),
+  notices: () => ({ session_id: "", phone: "", time: nowIso(), text: "", seen: 0 }),
+  presets: () => ({ type: "com", shop: "", text: "", updated: nowIso(), by: "admin" })
+};
+// Khai báo form: [cột, nhãn, kiểu, tùy chọn, chỉ-khi-thêm-mới]. Kiểu: text | area | num | bool | sel | dt | list (a|b <-> "a, b")
+const F = (k, l, t = "text", o, n) => ({ k, l, t, o, n });
+const TYPE = { com: "Cơm", nuoc: "Nước" };
+const FIELDS = {
+  members: [F("name", "Tên"), F("phone", "SĐT", "text", 0, 1), F("bank", "Ngân hàng"), F("account", "Số tài khoản mới (trống = giữ nguyên)"), F("acc_name", "Tên chủ tài khoản"), F("created", "Tham gia lúc", "dt")],
+  sessions: [F("shop", "Quán"), F("kind", "Loại", "sel", { com: "Cơm", nuoc: "Nước", "": "Cơm + nước" }), F("status", "Trạng thái", "sel", { open: "Đang mở", locked: "Đã chốt" }),
+    F("owner_name", "Người mở"), F("owner_phone", "SĐT người mở"), F("place", "Nơi giao"), F("notes", "Lưu ý", "area"), F("deadline", "Hạn đặt", "dt"), F("delivery", "Giao (now / giờ ISO / trống)"),
+    F("prepay", "Trả trước", "bool"), F("subsidy", "Hỗ trợ mỗi suất (đ)", "num"), F("extra_full", "Cơm thêm đầy đủ", "bool"), F("created", "Tạo lúc", "dt")],
+  orders: [F("name", "Tên người đặt"), F("phone", "SĐT", "text", 0, 1), F("item", "Món"), F("size", "Size"), F("toppings", "Topping (cách nhau dấu phẩy)", "list"), F("qty", "Số lượng", "num"),
+    F("price", "Đơn giá (đ)", "num"), F("type", "Loại", "sel", TYPE), F("note", "Ghi chú"), F("time", "Giờ đặt", "dt")],
+  menu: [F("name", "Tên món"), F("size", "Size"), F("category", "Mục"), F("price", "Giá (đ)", "num"), F("type", "Loại", "sel", TYPE), F("active", "Đang bán", "bool")],
+  notices: [F("text", "Nội dung", "area"), F("phone", "SĐT người nhận", "text", 0, 1), F("seen", "Đã xem", "bool"), F("time", "Thời gian", "dt")],
+  presets: [F("shop", "Quán"), F("type", "Loại", "sel", TYPE), F("text", "Menu (# Mục / Tên món (size) - 25K)", "area"), F("by", "Bởi"), F("updated", "Cập nhật", "dt")]
+};
+const toLocal = iso => { const d = new Date(iso); return iso && !isNaN(d) ? new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""; };
+// Tên gọi một dòng, dùng cho câu hỏi xác nhận và nhật ký
+const labelOf = (tb, r) => ({ orders: `${r.qty}× ${r.item} của ${r.name || r.phone}`, sessions: `phiên "${r.shop || r.id}"`, members: `thành viên ${r.name}`, menu: `món menu "${r.name}"`,
+  notices: "thông báo này", presets: `menu có sẵn "${r.shop}"` }[tb] || "dòng này");
+
+async function call(body) {
+  const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ phone: "0000000000", key: S.key, ...body }) });
   const j = await res.json();
   if (!j.ok) throw new Error(j.error);
 }
-// Hộp thoại sửa JSON; trả về object hoặc null nếu hủy
-function editJson(title, obj) {
+const write = (table, op, rowKey, row) => call({ action: "adminWrite", table, op, rowKey, row });
+
+// Hộp thoại dùng chung: html là thân hộp; getVal() chạy khi bấm nút có data-ok, trả { error } hoặc giá trị
+function dialog(title, html, buttons, getVal) {
   return new Promise(ok => {
     const d = document.createElement("dialog");
-    d.innerHTML = `<b>${esc(title)}</b><p class="mute small">Sửa nội dung JSON rồi bấm Lưu.</p><textarea spellcheck="false">${esc(JSON.stringify(obj, null, 2))}</textarea><div class="err" style="color:var(--bad)"></div>
-      <div class="row2"><button class="btn" data-c>Hủy</button><button class="btn primary" data-s>Lưu</button></div>`;
+    d.innerHTML = `<b>${esc(title)}</b><div class="dbody">${html}</div><div class="err"></div><div class="row2">${buttons}</div>`;
     document.body.appendChild(d); d.showModal();
     let fin = false;
     const done = v => { if (fin) return; fin = true; d.close(); d.remove(); ok(v); };
-    d.querySelector("[data-c]").onclick = () => done(null);
     d.oncancel = () => done(null);
-    d.querySelector("[data-s]").onclick = () => { try { done(JSON.parse(d.querySelector("textarea").value)); } catch (e) { d.querySelector(".err").textContent = "JSON sai: " + e.message; } };
+    d.querySelectorAll("[data-v]").forEach(b => b.onclick = () => {
+      if (b.dataset.v === "") return done(null);
+      const v = getVal ? getVal(d, b.dataset.v) : b.dataset.v;
+      if (v && v.error) d.querySelector(".err").textContent = v.error; else done(v);
+    });
   });
 }
+const choose = (title, opts) => dialog(title, "", `<button class="btn" data-v="">Hủy</button>` + opts.map(([l, v]) => `<button class="btn primary" data-v="${v}">${l}</button>`).join(""));
+
+// Form theo từng ô. Thêm mới: trả đủ dòng (gồm các khóa ẩn trong obj); sửa: chỉ trả các cột đã đổi. null nếu hủy
+function editForm(title, tb, obj, isNew) {
+  const fs = FIELDS[tb].filter(f => isNew || !f.n);
+  const init = f => f.t === "bool" ? !!obj[f.k] : f.t === "dt" ? toLocal(obj[f.k]) : f.t === "list" ? String(obj[f.k] ?? "").split("|").filter(Boolean).join(", ") : f.k === "account" && !isNew ? "" : String(obj[f.k] ?? "");
+  const input = f => {
+    const v = init(f), a = `data-f="${f.k}"`;
+    return f.t === "area" ? `<textarea ${a} rows="${f.k === "text" ? 10 : 3}">${esc(v)}</textarea>`
+      : f.t === "bool" ? `<input type="checkbox" ${a} ${v ? "checked" : ""}>`
+      : f.t === "sel" ? `<select ${a}>${Object.entries(f.o).map(([k, l]) => `<option value="${esc(k)}" ${String(obj[f.k] ?? "") === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`
+      : `<input ${a} type="${f.t === "num" ? "number" : f.t === "dt" ? "datetime-local" : "text"}" value="${esc(v)}">`;
+  };
+  const html = `<div class="fgrid">${fs.map(f => `<label>${esc(f.l)}</label><div>${input(f)}</div>`).join("")}</div>`;
+  return dialog(title, html, `<button class="btn" data-v="">Hủy</button><button class="btn primary" data-v="1">Lưu</button>`, d => {
+    const out = isNew ? { ...obj } : {};
+    for (const f of fs) {
+      const el = d.querySelector(`[data-f="${f.k}"]`), raw = f.t === "bool" ? el.checked : el.value;
+      if (!isNew && raw === init(f)) continue;
+      out[f.k] = f.t === "bool" ? +raw : f.t === "num" ? Number(raw) : f.t === "dt" ? (raw ? new Date(raw).toISOString() : "")
+        : f.t === "list" ? raw.split(",").map(x => x.trim()).filter(Boolean).join("|") : raw;
+      if (f.t === "num" && (raw.trim() === "" || !Number.isFinite(out[f.k]))) return { error: f.l + " phải là số" };
+    }
+    return out;
+  });
+}
+
 document.addEventListener("click", async e => {
   const el = e.target.closest("[data-act]"); if (!el) return;
   e.stopPropagation();
-  const { act, tb } = el.dataset;
+  const { act, tb } = el.dataset, y = scrollY;
   try {
     if (act === "add") {
-      const row = await editJson("Thêm vào " + tb, JSON.parse(el.dataset.tpl)); if (!row) return;
-      await write(tb, "insert", {}, row, row.session_id);
+      const row = await editForm("Thêm — " + (TITLE[tb] || tb), tb, JSON.parse(el.dataset.tpl), true); if (!row) return;
+      await write(tb, "insert", {}, row);
     } else if (act === "pay") {
       const { sid, phone } = el.dataset, cur = S.data.payments.find(p => p.session_id === sid && p.phone === phone);
-      const v = await editJson("Thanh toán " + phone, { claimed: cur ? cur.claimed : 0, paid: cur ? cur.paid : 0 }); if (!v) return;
-      if (!v.claimed && !v.paid) { if (cur) await write("payments", "delete", { session_id: sid, phone }, null, sid); }
-      else await write("payments", cur ? "update" : "insert", { session_id: sid, phone }, { ...(cur ? {} : { session_id: sid, phone }), claimed: +v.claimed || 0, paid: +v.paid || 0, updated: nowIso() }, sid);
+      const v = await choose("Thanh toán " + phone, [["Chưa trả", "0"], ["Báo đã chuyển", "1"], ["Đã trả", "2"]]); if (v == null) return;
+      const claimed = +(v === "1"), paid = +(v === "2");
+      if (!claimed && !paid) { if (cur) await write("payments", "delete", { session_id: sid, phone }); }
+      else await write("payments", cur ? "update" : "insert", { session_id: sid, phone }, { ...(cur ? {} : { session_id: sid, phone }), claimed, paid, updated: nowIso() });
+    } else if (act === "undo") {
+      if (!confirm("Hoàn tác thao tác này?")) return;
+      await call({ action: "adminUndo", logId: +el.dataset.id });
     } else {
       const key = JSON.parse(el.dataset.k), r = S.data[tb].find(x => PK[tb].every(c => x[c] == key[c]));
-      const sid = tb === "sessions" ? key.id : r && r.session_id;
       if (act === "del") {
-        if (!confirm("Xóa dòng này" + (tb === "sessions" ? " (kèm toàn bộ đơn, thanh toán, menu, thông báo của phiên)" : "") + "? Không hoàn tác được.")) return;
-        const D = S.data, bk = { table: tb, row: r };
-        if (tb === "sessions") Object.assign(bk, { orders: D.orders.filter(x => x.session_id === key.id), payments: D.payments.filter(x => x.session_id === key.id), notices: D.notices.filter(x => x.session_id === key.id) });
-        const a = document.createElement("a");   // bản sao để khôi phục: dán lại từng dòng vào "+ Thêm"
-        a.href = URL.createObjectURL(new Blob([JSON.stringify(bk, null, 2)], { type: "application/json" })); a.download = `xoa-${tb}-${Object.values(key).join("_")}.json`; a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-        await write(tb, "delete", key, null, sid);
+        if (!confirm(`Xóa ${labelOf(tb, r)}?` + (tb === "sessions" ? "\nKèm toàn bộ đơn, thanh toán, menu, thông báo của phiên." : "") + "\nCó thể hoàn tác ở tab Nhật ký.")) return;
+        await write(tb, "delete", key);
       } else {
-        // bỏ khóa chính và cột chỉ để hiển thị (số tài khoản đã bị che ở bảng thành viên)
-        const hide = [...PK[tb], "chars", ...(tb === "members" ? ["account"] : [])];
-        const row = Object.fromEntries(Object.entries(r).filter(([k]) => !hide.includes(k)));
-        const v = await editJson("Sửa " + tb + " " + Object.values(key).join(" / "), row); if (!v) return;
-        const diff = Object.fromEntries(Object.entries(v).filter(([k, x]) => x !== row[k]));
-        if (!Object.keys(diff).length) return;
-        await write(tb, "update", key, diff, sid);
+        const diff = await editForm("Sửa " + labelOf(tb, r), tb, r, false);
+        if (!diff || !Object.keys(diff).length) return;
+        await write(tb, "update", key, diff);
       }
     }
-    await load(); draw();
+    await load(); draw(); scrollTo(0, y);
   } catch (err) { alert(err.message); }
 });
+const TITLE = { members: "thành viên", orders: "món", menu: "món menu", notices: "thông báo", presets: "menu có sẵn" };
 
 // Gom đơn theo phiên: từng người -> tiền món, trợ cấp, phải trả, trạng thái thanh toán
 function model() {
   const d = S.data, pay = {};
   d.payments.forEach(p => pay[p.session_id + "|" + p.phone] = p);
-  const menus = Object.fromEntries(d.menus.map(m => [m.session_id, m.n]));
+  const menus = {}; d.menu.forEach(m => menus[m.session_id] = (menus[m.session_id] || 0) + 1);
   const by = {};
   d.sessions.forEach(s => by[s.id] = { s, people: {}, qty: 0, due: 0, got: 0, claimed: 0, unpaidPeople: 0, claimedPeople: 0, menu: menus[s.id] || 0 });
   d.orders.forEach(o => {
@@ -213,7 +272,7 @@ function model() {
 
 const TABS = [
   ["sessions", "Phiên", d => d.sessions.length], ["members", "Thành viên", d => d.members.length],
-  ["notices", "Thông báo", d => d.notices.length], ["presets", "Menu có sẵn", d => d.presets.length]
+  ["notices", "Thông báo", d => d.notices.length], ["presets", "Menu có sẵn", d => d.presets.length], ["log", "Nhật ký", d => d.log.length]
 ];
 const match = (obj, q) => !q || Object.values(obj).some(v => String(v ?? "").toLowerCase().includes(q));
 
@@ -235,9 +294,14 @@ function detailHtml(b) {
       ${payTag(p.pay)}<button class="btn mini" data-stop data-act="pay" data-sid="${esc(b.id)}" data-phone="${esc(p.phone)}">Thanh toán</button>${p.pay.updated ? `<span class="mute small">${when(p.pay.updated)}</span>` : ""}<b class="num">${vnd(p.due)}</b></div>
       ${p.rows.slice().reverse().map(o => `<div class="line"><span class="mute small">${hm(o.time)}</span> ${o.qty}× ${esc(oLabel(o))} <span class="mute">${vnd(o.price)}${o.qty > 1 ? ` · ${vnd(o.price * o.qty)}` : ""}</span>${o.note ? ` <span class="mute">– ${esc(o.note)}</span>` : ""} ${btn("edit", "orders", o, "Sửa")}${btn("del", "orders", o, "Xóa")}</div>`).join("")}</div>`).join("") : `<div class="empty">Chưa có đơn</div>`}
     ${orphanPay.map(p => `<div class="person"><div class="row"><b>${esc(who[p.phone] || p.phone)} <span class="mute small">${esc(p.phone)}</span></b>${payTag({ paid: !!p.paid, claimed: !!p.claimed })}<span class="mute small">${when(p.updated)} · không còn đơn</span></div></div>`).join("")}
-    ${b.s ? `<div class="person">${addBtn("orders", "+ Thêm món", { session_id: b.id, time: nowIso(), phone: "", name: "", type: "com", item: "", size: "", toppings: "", qty: 1, price: 0, note: "" })}</div>` : ""}
+    ${b.s ? `<div class="person" data-edit>${addBtn("orders", "+ Thêm món", { session_id: b.id, time: nowIso(), phone: "", name: "", type: "com", item: "", size: "", toppings: "", qty: 1, price: 0, note: "" })}</div>` : ""}
+    ${b.s ? menuHtml(b) : ""}
     ${b.s && b.s.notes ? `<div class="person"><div class="line mute" style="white-space:pre-line">Lưu ý: ${esc(b.s.notes)}</div></div>` : ""}</div>`;
 }
+// Menu của phiên (mở ra xem / sửa từng món)
+const menuHtml = b => { const ms = S.data.menu.filter(m => m.session_id === b.id);
+  return `<details class="person"><summary>Menu (${ms.length} món)</summary>${ms.map(m => `<div class="line">${esc(m.name)}${m.size ? ` (${esc(m.size)})` : ""} <span class="mute">${vnd(m.price)}${m.category ? " · " + esc(m.category) : ""}${m.active ? "" : " · ẩn"}</span> ${btn("edit", "menu", m, "Sửa")}${btn("del", "menu", m, "Xóa")}</div>`).join("")}
+    <div data-edit>${addBtn("menu", "+ Thêm món vào menu", { session_id: b.id, type: b.s.kind === "nuoc" ? "nuoc" : "com", category: "", name: "", size: "", price: 0, active: 1 })}</div></details>`; };
 // Văn bản dùng để tìm kiếm của một phiên (quán, người mở, tên / SĐT / món / ghi chú của từng người đặt)
 const sessText = b => [b.id, b.s && b.s.shop, b.s && b.s.owner_name, b.s && b.s.owner_phone, b.s && b.s.notes,
   ...Object.values(b.people).flatMap(p => [p.name, p.phone, ...p.rows.flatMap(o => [o.item, o.size, o.toppings, o.note])])].join(" ").toLowerCase();
@@ -253,7 +317,7 @@ function sessionList(by) {
 function view(by) {
   const d = S.data, q = S.q.trim().toLowerCase();
   if (S.tab === "sessions") {
-    const list = sessionList(by).filter(b => !q || sessText(b).includes(q));
+    const list = sessionList(by).filter(b => (!q || sessText(b).includes(q)) && (!S.debt || (b.s && b.due > b.got)));
     if (!list.length) return `<div class="card"><div class="empty">Không có phiên nào</div></div>`;
     return `<div class="card">${list.map(b => {
       const s = b.s, people = Object.values(b.people), pct = b.due ? Math.round(b.got / b.due * 100) : 0, open = !!q || S.open.has(b.id);
@@ -278,14 +342,24 @@ function view(by) {
       { h: "Đã xem", f: r => r.seen ? `<span class="tag ok">Đã hiểu</span>` : `<span class="tag warn">Chưa xem</span>` },
       { h: "", f: r => btn("edit", "notices", r, "Sửa") + btn("del", "notices", r, "Xóa") }], d.notices.filter(r => match(r, q)), "Chưa có thông báo nào");
   }
+  if (S.tab === "log") return table([{ h: "Thời gian", f: r => when(r.time) }, { h: "Thao tác", f: r => `<span class="tag ${r.op === "delete" ? "bad" : r.op === "insert" ? "ok" : "info"}">${{ insert: "Thêm", update: "Sửa", delete: "Xóa" }[r.op]}</span> ${esc(r.tbl)}` },
+    { h: "Nội dung", wide: true, f: r => esc(logText(r)) }, { h: "IP", f: r => `<span class="mute small">${esc(r.ip)}</span>` },
+    { h: "", f: r => r.undone ? `<span class="tag">Đã hoàn tác</span>` : `<button class="btn mini" data-stop data-act="undo" data-id="${r.id}">Hoàn tác</button>` }], d.log.filter(r => match(r, q)), "Chưa có thao tác nào");
   return table([{ h: "Quán", f: r => `<b>${esc(r.shop)}</b>` }, { h: "Loại", f: r => KIND[r.type] }, { h: "Độ dài menu", num: true, f: r => r.chars + " ký tự" }, { h: "Cập nhật", f: r => when(r.updated) }, { h: "Bởi", f: r => esc(r.by) }, { h: "", f: r => btn("edit", "presets", r, "Sửa") + btn("del", "presets", r, "Xóa") }],
     d.presets.filter(r => match(r, q)));
 }
 
+const J = x => { try { return JSON.parse(x); } catch { return null; } };
+function logText(l) {
+  const b = J(l.before), a = J(l.after), nm = r => r ? (r.shop || r.name || r.item || r.text || "") : "";
+  if (l.op === "insert") return nm(a) || Object.values(J(l.row_key) || {}).join("/");
+  if (l.op === "update") return `${nm(b.row)}: ` + Object.keys(a).map(c => `${c} ${b.row[c] ?? "—"} → ${a[c]}`).join(" · ");
+  return nm(b.row) + (b.orders ? ` (kèm ${b.orders.length} đơn, ${b.menu.length} món menu)` : "");
+}
 // Tab Phiên: mỗi dòng CSV là một dòng món, kèm thông tin phiên + trạng thái thanh toán của người đặt (theo ô tìm kiếm đang lọc)
 function csvRows() {
   const d = S.data, q = S.q.trim().toLowerCase();
-  if (S.tab !== "sessions") return { members: d.members, notices: d.notices, presets: d.presets }[S.tab];
+  if (S.tab !== "sessions") return { members: d.members, notices: d.notices, presets: d.presets, log: d.log }[S.tab];
   const out = [];
   sessionList(model()).filter(b => !q || sessText(b).includes(q)).forEach(b => Object.values(b.people).forEach(p => p.rows.slice().reverse().forEach(o => {
     const s = b.s || {};
@@ -319,26 +393,28 @@ function draw() {
     $("#go").onclick = go; $("#key").onkeydown = e => { if (e.key === "Enter") go(); };
     return;
   }
+  document.body.classList.toggle("edit", S.edit);
   const d = S.data, by = model(), all = Object.values(by);
   if (!S.inited) { S.inited = true; if (d.sessions[0]) S.open.add(d.sessions[0].id); }
   const sum = k => all.reduce((t, b) => t + b[k], 0);
   const need = sum("due"), got = sum("got"), claimed = sum("claimed"), todo = need - got - claimed;
   const unpaidP = sum("unpaidPeople"), claimedP = sum("claimedPeople"), pct = need ? Math.round(got / need * 100) : 0;
   root.innerHTML = `<header><div class="in"><img src="img/logo-256.png" alt=""><h1>Deeyu Food<small>Dữ liệu D1 · cập nhật ${when(d.at)}</small></h1>
-      <button class="btn" id="csv">Tải CSV</button><button class="btn primary" id="refresh">Làm mới</button><button class="btn" id="out">Thoát</button></div></header>
+      <button class="btn ${S.edit ? "on" : ""}" id="editmode">Chế độ sửa: ${S.edit ? "Bật" : "Tắt"}</button><button class="btn" id="csv">Tải CSV</button><button class="btn primary" id="refresh">Làm mới</button><button class="btn" id="out">Thoát</button></div></header>
     <div class="wrap">
       <div class="stats"><div class="stat"><span>Thành viên</span><b>${d.members.length}</b></div><div class="stat"><span>Phiên</span><b>${d.sessions.length}</b></div>
         <div class="stat"><span>Dòng đơn</span><b>${d.orders.length}</b></div></div>
-      <div class="card money"><h2>Thu tiền <small>${unpaidP + claimedP ? `${unpaidP + claimedP} người chưa được xác nhận trả` : "mọi người đã trả đủ"}</small></h2>
+      <div class="card money"><h2>Thu tiền ${S.days ? `(${S.days} ngày gần nhất)` : "(tất cả)"} <small>${unpaidP + claimedP ? `${unpaidP + claimedP} người chưa được xác nhận trả` : "mọi người đã trả đủ"}</small></h2>
         <div class="stats flat"><div class="stat"><span>Cần thu</span><b>${vnd(need)}</b></div><div class="stat ok"><span>Đã thu</span><b>${vnd(got)}</b></div>
           <div class="stat info"><span>Chờ xác nhận <small>${claimedP} người báo đã chuyển</small></span><b>${vnd(claimed)}</b></div>
           <div class="stat ${todo > 0 ? "bad" : ""}"><span>Chưa chuyển <small>${unpaidP} người</small></span><b>${vnd(todo)}</b></div></div>
         <div class="prog"><i style="width:${pct}%"></i></div></div>
       <div class="bar"><div class="tabs">${TABS.map(([k, l, n]) => `<button data-t="${k}" class="${S.tab === k ? "on" : ""}">${l}<span class="n">${n(d)}</span></button>`).join("")}</div>
-        ${TPL[S.tab] ? addBtn(S.tab, "+ Thêm") : ""}${S.tab === "sessions" ? `<button class="btn" id="openAll">Mở hết</button><button class="btn" id="closeAll">Thu gọn</button>` : ""}
+        <select id="days" title="Khoảng thời gian của phiên">${[[1, "Hôm nay"], [7, "7 ngày"], [30, "30 ngày"], [0, "Tất cả"]].map(([v, l]) => `<option value="${v}" ${S.days === v ? "selected" : ""}>${l}</option>`).join("")}</select>
+        ${S.tab === "sessions" ? `<label class="chk"><input type="checkbox" id="debt" ${S.debt ? "checked" : ""}> Còn nợ</label>` : ""}${TPL[S.tab] ? addBtn(S.tab, "+ Thêm") : ""}${S.tab === "sessions" ? `<button class="btn" id="openAll">Mở hết</button><button class="btn" id="closeAll">Thu gọn</button>` : ""}
         <div class="search"><input id="q" type="search" placeholder="Tìm theo tên, SĐT, món, quán…" value="${esc(S.q)}"></div></div>
       <div id="view">${view(by)}</div>
-      <div class="foot">Sửa / xóa / thêm ghi thẳng vào database và không hoàn tác được – kiểm tra kỹ trước khi lưu.</div></div>`;
+      <div class="foot">Bật “Chế độ sửa” để sửa / xóa / thêm. Mọi thay đổi ghi thẳng vào database và có trong tab Nhật ký (hoàn tác được).</div></div>`;
   wire(by);
 }
 function wire(by) {
@@ -346,6 +422,9 @@ function wire(by) {
   $("#q").oninput = e => { S.q = e.target.value; $("#view").innerHTML = view(by); bindSess(); };
   if ($("#openAll")) { $("#openAll").onclick = () => { sessionList(by).forEach(b => S.open.add(b.id)); $("#view").innerHTML = view(by); bindSess(); };
     $("#closeAll").onclick = () => { S.open.clear(); $("#view").innerHTML = view(by); bindSess(); }; }
+  $("#editmode").onclick = () => { S.edit = !S.edit; document.body.classList.toggle("edit", S.edit); $("#editmode").classList.toggle("on", S.edit); $("#editmode").textContent = "Chế độ sửa: " + (S.edit ? "Bật" : "Tắt"); };
+  $("#days").onchange = async e => { S.days = +e.target.value; try { await load(); } catch (err) { alert(err.message); } draw(); };
+  if ($("#debt")) $("#debt").onchange = e => { S.debt = e.target.checked; $("#view").innerHTML = view(by); bindSess(); };
   $("#csv").onclick = csv; $("#out").onclick = () => { sessionStorage.removeItem("deeyu_admin"); S.data = null; S.key = ""; draw(); };
   $("#refresh").onclick = async () => { $("#refresh").disabled = true; $("#refresh").textContent = "Đang tải…"; try { await load(); } catch (e) { alert(e.message); } draw(); };
   bindSess();
