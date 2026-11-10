@@ -96,6 +96,9 @@
   .foot { text-align:center; color:var(--mute); font-size:12.5px; margin-top:16px; }
   .hidden { display:none !important; }
   @media (max-width:640px) { th, td { padding:9px 10px; } header h1 small { display:none; } }
+.mini{padding:2px 8px;font-size:12px;margin-left:4px}.mini.del{color:var(--bad)}
+dialog{border:1px solid #ccc;border-radius:12px;padding:16px;width:min(560px,94vw);background:var(--card,#fff);color:inherit}
+dialog textarea{width:100%;height:260px;font:12px/1.4 monospace;box-sizing:border-box}dialog .row2{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 </style>
 </head>
 <body>
@@ -118,6 +121,72 @@ async function load() {
   if (!j.ok) throw new Error(j.error);
   S.data = j.data; sessionStorage.setItem("deeyu_admin", S.key);
 }
+
+// ---- ghi dữ liệu (sửa / thêm / xóa) qua action adminWrite ----
+const PK = { members: ["phone"], sessions: ["id"], orders: ["id"], payments: ["session_id", "phone"], notices: ["id"], presets: ["id"] };
+const nowIso = () => new Date().toISOString();
+const keyOf = (t, r) => Object.fromEntries(PK[t].map(c => [c, r[c]]));
+const btn = (a, t, r, l) => `<button class="btn mini ${a === "del" ? "del" : ""}" data-stop data-act="${a}" data-tb="${t}" data-k='${esc(JSON.stringify(keyOf(t, r)))}'>${l}</button>`;
+const addBtn = (t, l, tpl) => `<button class="btn mini" data-stop data-act="add" data-tb="${t}" data-tpl='${esc(JSON.stringify(tpl || TPL[t] || {}))}'>${l}</button>`;
+const TPL = { members: { phone: "", name: "", created: nowIso() }, sessions: { kind: "com", status: "open", shop: "", owner_phone: "", owner_name: "", created: nowIso() },
+  notices: { session_id: "", phone: "", time: nowIso(), text: "", seen: 0 },
+  presets: { type: "com", shop: "", text: "", updated: nowIso(), by: "admin" } };
+async function write(table, op, key, row, sid) {
+  const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "adminWrite", phone: "0000000000", key: S.key, table, op, rowKey: key, row, sid }) });
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error);
+}
+// Hộp thoại sửa JSON; trả về object hoặc null nếu hủy
+function editJson(title, obj) {
+  return new Promise(ok => {
+    const d = document.createElement("dialog");
+    d.innerHTML = `<b>${esc(title)}</b><p class="mute small">Sửa nội dung JSON rồi bấm Lưu.</p><textarea spellcheck="false">${esc(JSON.stringify(obj, null, 2))}</textarea><div class="err" style="color:var(--bad)"></div>
+      <div class="row2"><button class="btn" data-c>Hủy</button><button class="btn primary" data-s>Lưu</button></div>`;
+    document.body.appendChild(d); d.showModal();
+    let fin = false;
+    const done = v => { if (fin) return; fin = true; d.close(); d.remove(); ok(v); };
+    d.querySelector("[data-c]").onclick = () => done(null);
+    d.oncancel = () => done(null);
+    d.querySelector("[data-s]").onclick = () => { try { done(JSON.parse(d.querySelector("textarea").value)); } catch (e) { d.querySelector(".err").textContent = "JSON sai: " + e.message; } };
+  });
+}
+document.addEventListener("click", async e => {
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  e.stopPropagation();
+  const { act, tb } = el.dataset;
+  try {
+    if (act === "add") {
+      const row = await editJson("Thêm vào " + tb, JSON.parse(el.dataset.tpl)); if (!row) return;
+      await write(tb, "insert", {}, row, row.session_id);
+    } else if (act === "pay") {
+      const { sid, phone } = el.dataset, cur = S.data.payments.find(p => p.session_id === sid && p.phone === phone);
+      const v = await editJson("Thanh toán " + phone, { claimed: cur ? cur.claimed : 0, paid: cur ? cur.paid : 0 }); if (!v) return;
+      if (!v.claimed && !v.paid) { if (cur) await write("payments", "delete", { session_id: sid, phone }, null, sid); }
+      else await write("payments", cur ? "update" : "insert", { session_id: sid, phone }, { ...(cur ? {} : { session_id: sid, phone }), claimed: +v.claimed || 0, paid: +v.paid || 0, updated: nowIso() }, sid);
+    } else {
+      const key = JSON.parse(el.dataset.k), r = S.data[tb].find(x => PK[tb].every(c => x[c] == key[c]));
+      const sid = tb === "sessions" ? key.id : r && r.session_id;
+      if (act === "del") {
+        if (!confirm("Xóa dòng này" + (tb === "sessions" ? " (kèm toàn bộ đơn, thanh toán, menu, thông báo của phiên)" : "") + "? Không hoàn tác được.")) return;
+        const D = S.data, bk = { table: tb, row: r };
+        if (tb === "sessions") Object.assign(bk, { orders: D.orders.filter(x => x.session_id === key.id), payments: D.payments.filter(x => x.session_id === key.id), notices: D.notices.filter(x => x.session_id === key.id) });
+        const a = document.createElement("a");   // bản sao để khôi phục: dán lại từng dòng vào "+ Thêm"
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(bk, null, 2)], { type: "application/json" })); a.download = `xoa-${tb}-${Object.values(key).join("_")}.json`; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+        await write(tb, "delete", key, null, sid);
+      } else {
+        // bỏ khóa chính và cột chỉ để hiển thị (số tài khoản đã bị che ở bảng thành viên)
+        const hide = [...PK[tb], "chars", ...(tb === "members" ? ["account"] : [])];
+        const row = Object.fromEntries(Object.entries(r).filter(([k]) => !hide.includes(k)));
+        const v = await editJson("Sửa " + tb + " " + Object.values(key).join(" / "), row); if (!v) return;
+        const diff = Object.fromEntries(Object.entries(v).filter(([k, x]) => x !== row[k]));
+        if (!Object.keys(diff).length) return;
+        await write(tb, "update", key, diff, sid);
+      }
+    }
+    await load(); draw();
+  } catch (err) { alert(err.message); }
+});
 
 // Gom đơn theo phiên: từng người -> tiền món, trợ cấp, phải trả, trạng thái thanh toán
 function model() {
@@ -163,9 +232,10 @@ function detailHtml(b) {
   const orphanPay = S.data.payments.filter(p => p.session_id === b.id && !have.has(p.phone));   // có thanh toán mà không còn đơn
   const who = Object.fromEntries(S.data.members.map(m => [m.phone, m.name]));
   return `<div class="detail" data-stop>${people.length ? people.map(p => `<div class="person"><div class="row"><b>${esc(p.name)} <span class="mute small">${esc(p.phone)}</span></b>
-      ${payTag(p.pay)}${p.pay.updated ? `<span class="mute small">${when(p.pay.updated)}</span>` : ""}<b class="num">${vnd(p.due)}</b></div>
-      ${p.rows.slice().reverse().map(o => `<div class="line"><span class="mute small">${hm(o.time)}</span> ${o.qty}× ${esc(oLabel(o))} <span class="mute">${vnd(o.price)}${o.qty > 1 ? ` · ${vnd(o.price * o.qty)}` : ""}</span>${o.note ? ` <span class="mute">– ${esc(o.note)}</span>` : ""}</div>`).join("")}</div>`).join("") : `<div class="empty">Chưa có đơn</div>`}
+      ${payTag(p.pay)}<button class="btn mini" data-stop data-act="pay" data-sid="${esc(b.id)}" data-phone="${esc(p.phone)}">Thanh toán</button>${p.pay.updated ? `<span class="mute small">${when(p.pay.updated)}</span>` : ""}<b class="num">${vnd(p.due)}</b></div>
+      ${p.rows.slice().reverse().map(o => `<div class="line"><span class="mute small">${hm(o.time)}</span> ${o.qty}× ${esc(oLabel(o))} <span class="mute">${vnd(o.price)}${o.qty > 1 ? ` · ${vnd(o.price * o.qty)}` : ""}</span>${o.note ? ` <span class="mute">– ${esc(o.note)}</span>` : ""} ${btn("edit", "orders", o, "Sửa")}${btn("del", "orders", o, "Xóa")}</div>`).join("")}</div>`).join("") : `<div class="empty">Chưa có đơn</div>`}
     ${orphanPay.map(p => `<div class="person"><div class="row"><b>${esc(who[p.phone] || p.phone)} <span class="mute small">${esc(p.phone)}</span></b>${payTag({ paid: !!p.paid, claimed: !!p.claimed })}<span class="mute small">${when(p.updated)} · không còn đơn</span></div></div>`).join("")}
+    ${b.s ? `<div class="person">${addBtn("orders", "+ Thêm món", { session_id: b.id, time: nowIso(), phone: "", name: "", type: "com", item: "", size: "", toppings: "", qty: 1, price: 0, note: "" })}</div>` : ""}
     ${b.s && b.s.notes ? `<div class="person"><div class="line mute" style="white-space:pre-line">Lưu ý: ${esc(b.s.notes)}</div></div>` : ""}</div>`;
 }
 // Văn bản dùng để tìm kiếm của một phiên (quán, người mở, tên / SĐT / món / ghi chú của từng người đặt)
@@ -190,7 +260,7 @@ function view(by) {
       return `<div class="sess" data-sess="${esc(b.id)}">
         <div class="top"><b>${s ? esc(s.shop || "(chưa đặt tên quán)") : "Phiên đã xóa"}</b>${s ? `<span class="tag brand">${KIND[s.kind] || "Cơm + nước"}</span>
           <span class="tag ${s.status === "open" ? "ok" : ""}">${s.status === "open" ? "Đang mở" : "Đã chốt"}</span>${s.prepay ? `<span class="tag warn">Trả trước</span>` : ""}` : ""}
-          <span class="mute small">${open ? "▾" : "▸"}</span></div>
+          <span class="mute small">${open ? "▾" : "▸"}</span>${s ? btn("edit", "sessions", s, "Sửa") + btn("del", "sessions", s, "Xóa") : ""}</div>
         <div class="meta">${s ? `<span>${esc(s.owner_name)} · ${esc(s.owner_phone)}</span><span>${when(s.created)}</span>` : ""}<span>${people.length} người · ${b.qty} phần</span>
           ${s ? (b.due ? `<span>Cần thu ${vnd(b.due)}</span><span style="color:var(--ok)">Đã thu ${vnd(b.got)} (${pct}%)</span>
             <span style="color:${b.due > b.got ? (s.status === "open" ? "var(--ink2)" : "var(--bad)") : "var(--ok)"}">${b.due > b.got ? `Còn ${vnd(b.due - b.got)}${b.claimed ? ` (${vnd(b.claimed)} chờ xác nhận)` : ""}` : "✓ Đã đủ"}</span>` : `<span>Chưa có đơn</span>`) : `<span>Tổng ${vnd(b.due)}</span>`}
@@ -200,13 +270,15 @@ function view(by) {
     }).join("")}</div>`;
   }
   if (S.tab === "members") return table([{ h: "Tên", f: r => `<b>${esc(r.name)}</b>` }, { h: "SĐT", f: r => esc(r.phone) }, { h: "Tham gia", f: r => when(r.created) },
-    { h: "Ngân hàng nhận tiền", f: r => r.bank ? `${esc(r.bank)} ${esc(r.account)} <span class="mute">${esc(r.acc_name)}</span>` : `<span class="mute">—</span>` }], d.members.filter(r => match(r, q)));
+    { h: "Ngân hàng nhận tiền", f: r => r.bank ? `${esc(r.bank)} ${esc(r.account)} <span class="mute">${esc(r.acc_name)}</span>` : `<span class="mute">—</span>` },
+    { h: "", f: r => btn("edit", "members", r, "Sửa") + btn("del", "members", r, "Xóa") }], d.members.filter(r => match(r, q)));
   if (S.tab === "notices") {
     const who = Object.fromEntries(d.members.map(m => [m.phone, m.name]));
     return table([{ h: "Thời gian", f: r => when(r.time) }, { h: "Gửi cho", f: r => `<b>${esc(who[r.phone] || r.phone)}</b>` }, { h: "Nội dung", wide: true, f: r => esc(r.text) },
-      { h: "Đã xem", f: r => r.seen ? `<span class="tag ok">Đã hiểu</span>` : `<span class="tag warn">Chưa xem</span>` }], d.notices.filter(r => match(r, q)), "Chưa có thông báo nào");
+      { h: "Đã xem", f: r => r.seen ? `<span class="tag ok">Đã hiểu</span>` : `<span class="tag warn">Chưa xem</span>` },
+      { h: "", f: r => btn("edit", "notices", r, "Sửa") + btn("del", "notices", r, "Xóa") }], d.notices.filter(r => match(r, q)), "Chưa có thông báo nào");
   }
-  return table([{ h: "Quán", f: r => `<b>${esc(r.shop)}</b>` }, { h: "Loại", f: r => KIND[r.type] }, { h: "Độ dài menu", num: true, f: r => r.chars + " ký tự" }, { h: "Cập nhật", f: r => when(r.updated) }, { h: "Bởi", f: r => esc(r.by) }],
+  return table([{ h: "Quán", f: r => `<b>${esc(r.shop)}</b>` }, { h: "Loại", f: r => KIND[r.type] }, { h: "Độ dài menu", num: true, f: r => r.chars + " ký tự" }, { h: "Cập nhật", f: r => when(r.updated) }, { h: "Bởi", f: r => esc(r.by) }, { h: "", f: r => btn("edit", "presets", r, "Sửa") + btn("del", "presets", r, "Xóa") }],
     d.presets.filter(r => match(r, q)));
 }
 
@@ -236,8 +308,8 @@ function csv() {
 function draw() {
   const root = $("#app");
   if (!S.data) {
-    root.innerHTML = `<div class="login"><img src="img/logo-256.png" alt=""><h2>Quản trị dữ liệu</h2><p>Nhập mã quản trị để xem database (chỉ đọc)</p>
-      <input id="key" type="password" placeholder="Mã quản trị" autocomplete="current-password" autofocus><button class="btn primary" id="go">Vào xem</button><div class="err" id="err">${esc(S.err)}</div></div>`;
+    root.innerHTML = `<div class="login"><img src="img/logo-256.png" alt=""><h2>Quản trị dữ liệu</h2><p>Nhập mã quản trị để xem và chỉnh sửa database</p>
+      <input id="key" type="password" placeholder="Mã quản trị" autocomplete="current-password" autofocus><button class="btn primary" id="go">Vào</button><div class="err" id="err">${esc(S.err)}</div></div>`;
     const go = async () => {
       S.key = $("#key").value.trim(); if (!S.key) return;
       $("#go").disabled = true; $("#go").textContent = "Đang tải…";
@@ -263,10 +335,10 @@ function draw() {
           <div class="stat ${todo > 0 ? "bad" : ""}"><span>Chưa chuyển <small>${unpaidP} người</small></span><b>${vnd(todo)}</b></div></div>
         <div class="prog"><i style="width:${pct}%"></i></div></div>
       <div class="bar"><div class="tabs">${TABS.map(([k, l, n]) => `<button data-t="${k}" class="${S.tab === k ? "on" : ""}">${l}<span class="n">${n(d)}</span></button>`).join("")}</div>
-        ${S.tab === "sessions" ? `<button class="btn" id="openAll">Mở hết</button><button class="btn" id="closeAll">Thu gọn</button>` : ""}
+        ${TPL[S.tab] ? addBtn(S.tab, "+ Thêm") : ""}${S.tab === "sessions" ? `<button class="btn" id="openAll">Mở hết</button><button class="btn" id="closeAll">Thu gọn</button>` : ""}
         <div class="search"><input id="q" type="search" placeholder="Tìm theo tên, SĐT, món, quán…" value="${esc(S.q)}"></div></div>
       <div id="view">${view(by)}</div>
-      <div class="foot">Chỉ đọc – muốn sửa dữ liệu dùng Console trong Cloudflare D1.</div></div>`;
+      <div class="foot">Sửa / xóa / thêm ghi thẳng vào database và không hoàn tác được – kiểm tra kỹ trước khi lưu.</div></div>`;
   wire(by);
 }
 function wire(by) {
