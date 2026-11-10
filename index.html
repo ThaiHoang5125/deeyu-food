@@ -484,13 +484,14 @@ const state = { user: store.get(), view: "login", sid: null, data: null, cart: [
                 q: "", cartOpen: false, src: {}, mstep: {} };
 
 function setBar(html) { $("#barHost").innerHTML = html ? `<div class="bar"><div>${html}</div></div>` : ""; }
-// Điều hướng gắn với lịch sử trình duyệt: nút Back của điện thoại = lùi màn hình; link "#s=<mã phiên>" mở thẳng phiên đó
-// Bảng thanh toán: "#pay=<mã1>,<mã2>&cap=60" (cap = trần hỗ trợ, nghìn đồng) -> gửi link là mọi người thấy cùng một bảng
-const urlOf = (view, sid) => view === "session" ? "#s=" + sid : view === "create" ? "#new" + (state.newKind === "nuoc" ? "=nuoc" : "") : view === "pay" ? "#pay=" + (sid || "") : view === "stats" ? "#stats" : view === "addmenu" ? "#menu" : location.pathname + location.search;
+// Điều hướng gắn với lịch sử trình duyệt: nút Back của điện thoại = lùi màn hình; link "#<mã phiên>" mở thẳng phiên đó
+// Bảng thanh toán: "#p=<mã1>,<mã2>&c=60" (cap = trần hỗ trợ, nghìn đồng) -> gửi link là mọi người thấy cùng một bảng
+const urlOf = (view, sid) => view === "session" ? "#" + sid : view === "create" ? "#new" + (state.newKind === "nuoc" ? "=nuoc" : "") : view === "pay" ? "#p=" + (sid || "").replace("&cap=", "&c=") : view === "stats" ? "#stats" : view === "addmenu" ? "#menu" : location.pathname + location.search;
 function fromHash() {
-  const m = location.hash.match(/^#s=([\w-]+)/), p = location.hash.match(/^#pay(?:=([\w,&=-]*))?$/), n = location.hash.match(/^#new(=nuoc)?$/);
-  if (m) return { view: "session", sid: m[1] };
-  if (p) return { view: "pay", sid: p[1] || "" };
+  // Link ngắn "#<mã hex>", "#p=<mã,mã>&c=60"; vẫn nhận link cũ "#s=<mã>", "#pay=...&cap=60"
+  const m = location.hash.match(/^#(?:s=([\w-]+)|([0-9a-f]{6,8}))$/), p = location.hash.match(/^#p(?:ay)?(?:=([\w,&=-]*))?$/), n = location.hash.match(/^#new(=nuoc)?$/);
+  if (m) return { view: "session", sid: m[1] || m[2] };
+  if (p) return { view: "pay", sid: (p[1] || "").replace("&c=", "&cap=") };
   if (n) { state.newKind = n[1] ? "nuoc" : "com"; return { view: "create", sid: null }; }
   return { view: location.hash === "#stats" ? "stats" : location.hash === "#menu" ? "addmenu" : "home", sid: null };
 }
@@ -1176,7 +1177,7 @@ function paintNotices() {
 const isOwner = () => state.data.session.owner_phone === state.user.phone;
 // Gửi link phiên vào nhóm chat: bảng chia sẻ của điện thoại, máy không hỗ trợ thì copy link
 async function shareSession() {
-  const s = state.data.session, url = location.href.split("#")[0] + "#s=" + state.sid;
+  const s = state.data.session, url = location.href.split("#")[0] + "#" + state.sid;
   const text = `Vào đặt ${recvWord(s)} cùng mình${s.shop ? ": " + s.shop : ""}${s.deadline ? ` (chốt ${isoToTime(s.deadline)})` : ""}`;
   if (navigator.share) { try { await navigator.share({ title: "Deeyu Food", text, url }); return; } catch (e) { if (e.name === "AbortError") return; } }
   copyText(text + "\n" + url);
