@@ -1312,23 +1312,21 @@ const CAT_COLORS = [["#2f9e44", "#ebfbee"], ["#e8590c", "#fff4e6"], ["#d6336c", 
 const catStyle = cat => { const [c, c2] = CAT_COLORS[[...String(cat || "")].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7) % CAT_COLORS.length]; return `--c:${c};--c2:${c2}`; };
 const optNote = sel => [sel.sugar, sel.ice].filter(Boolean).join(", ");
 function drawOrder() {
-  const { menu } = state.data, type = state.tab, open = isOpen(), tiles = type === "nuoc";
+  const { menu } = state.data, type = state.tab, open = isOpen(), drink = type === "nuoc";
   const items = drinkOptions(type), tops = toppingsOf(type);
-  if (!(tiles && items.some(i => i.name === state.tileOpen))) state.tileOpen = "";   // món đang xem không còn / đổi tab
-  const detail = tiles && !!state.tileOpen;
   const lineHtml = l => `
     <div class="line" data-k="${esc(lineKey(l))}"><div class="row"><div class="grow mute">${esc([l.size, ...l.toppings.map(t => "+ " + t)].filter(Boolean).join(" · ") || "Trong giỏ")} · <b style="color:var(--ink)">${money(lineUnit(l) * l.qty)}</b></div>
       ${qtyHtml(l.qty, open)}</div>
       <input class="note" placeholder="Ghi chú riêng của bạn (ít đá, ít ngọt, ít cơm…)" maxlength="200" value="${esc(l.note)}" ${open ? "" : "disabled"}></div>`;
   // Combo "2 món 27K": ô tick là các món chọn kèm (giá 0) và phải chọn đúng số món ghi trong tên
   const pickOf = it => { const m = tops.length && tops.every(t => !t.price) && COMBO_RE.exec(it.name); return m ? parseInt(m[0]) : 0; };
-  const topsLabel = (pick, n) => pick ? `Chọn món (${n}/${pick})` : n ? `Topping (${n})` : "Chọn topping";
   const itemHtml = it => {
     const sel = state.sel[it.name] ||= { size: it.variants[0].size, tops: [], sugar: "", ice: "" }, pick = pickOf(it);
     if (!it.variants.some(v => v.size === sel.size)) sel.size = it.variants[0].size;
     sel.tops = sel.tops.filter(n => tops.some(t => t.name === n));
     const multi = it.variants.length > 1;
-    if (tiles) {   // danh sách: ô nhỏ chỉ có tên (màu theo loại); bấm vào thì sang màn chọn size / topping / đường / đá
+    // danh sách: ô nhỏ chỉ có tên (màu theo loại); bấm vào thì sang màn chọn size / topping (/ đường / đá với nước)
+    {
       const n = state.cart.reduce((q, l) => q + (l.name === it.name ? l.qty : 0), 0), cs = catStyle(it.category), dn = `data-n="${esc(it.name)}" data-f="${esc(fold(it.name))}" data-pick="0" style="${cs}"`;
       if (state.tileOpen !== it.name) return `<div class="item tile ${n ? "in" : ""}" ${dn} data-tile role="button" tabindex="0"><span class="n">${esc(it.name)}</span>${n ? `<span class="tag">×${n}</span>` : ""}</div>`;
       const from = Math.min(...it.variants.map(v => v.price)), mine = state.cart.filter(l => l.name === it.name);
@@ -1339,21 +1337,12 @@ function drawOrder() {
         <div class="dhead"><div class="n">${esc(it.name)}</div><div class="p">${multi ? "từ " : ""}${money(from)}${it.category ? ` · ${esc(it.category)}` : ""}</div></div>
         ${multi ? `<div class="og"><b>Size <small>chọn 1</small></b><div class="ogrid sz">${it.variants.map(v => `<button type="button" class="chip ${v.size === sel.size ? "on" : ""}" data-size="${esc(v.size)}"><span>${v.size ? esc(v.size) : "Mặc định"}</span><small>${money(v.price)}</small></button>`).join("")}</div></div>` : ""}
         ${tops.length ? `<div class="og"><b>Topping <small>chọn nhiều</small></b><div class="ogrid tp">${tops.map(t => `<label class="cell"><input type="checkbox" data-top="${esc(t.name)}" ${sel.tops.includes(t.name) ? "checked" : ""}><span>${esc(t.name)}</span><small>${t.price ? "+" + money(t.price) : "miễn phí"}</small></label>`).join("")}</div></div>` : ""}
-        <div class="og"><b>Đường <small>chọn 1</small></b><div class="ogrid g5">${SUGAR.map(v => btn("s", v, v.replace(" đường", ""), sel.sugar === v)).join("")}</div></div>
-        <div class="og"><b>Đá <small>chọn 1</small></b><div class="ogrid g4">${ICE.map(v => btn("i", v, v, sel.ice === v)).join("")}</div></div>
+        ${drink ? `<div class="og"><b>Đường <small>chọn 1</small></b><div class="ogrid g5">${SUGAR.map(v => btn("s", v, v.replace(" đường", ""), sel.sugar === v)).join("")}</div></div>
+        <div class="og"><b>Đá <small>chọn 1</small></b><div class="ogrid g4">${ICE.map(v => btn("i", v, v, sel.ice === v)).join("")}</div></div>` : ""}
         <div class="addbar"><div class="grow"><div class="sum" id="dsum"></div><b class="tot" id="dtot"></b></div><button class="primary fit" data-add ${open ? "" : "disabled"}>${I("plus", "sm")} Thêm vào giỏ</button></div>
         ${mine.length ? `<div class="og"><b>Trong giỏ</b>${mine.map(lineHtml).join("")}</div>` : ""}
       </div>`;
     }
-    // Nhiều size: mỗi size một nút bấm (thay cho ô chọn), giá ghi ngay trên nút
-    return `
-      <div class="item ${state.cart.some(l => l.name === it.name) ? "in" : ""}" data-n="${esc(it.name)}" data-f="${esc(fold(it.name))}" data-pick="${pick}">
-        <div class="row"><div class="grow"><div class="n">${esc(it.name)}</div>${multi ? "" : `<div class="p">${money(it.variants[0].price)}</div>`}</div>
-          <button class="add" data-add ${open ? "" : "disabled"} title="Thêm vào giỏ" aria-label="Thêm ${esc(it.name)} vào giỏ">${I("plus")}</button></div>
-        ${multi ? `<div class="chips">${it.variants.map(v => `<button class="chip ${v.size === sel.size ? "on" : ""}" data-size="${esc(v.size)}">${v.size ? esc(v.size) : "Mặc định"} · ${money(v.price)}</button>`).join("")}</div>` : ""}
-        ${tops.length && !combos.length ? `<details class="dd" style="margin-top:8px" data-dd="${esc(it.name)}" ${state.ddOpen.has(it.name) ? "open" : ""}><summary>${topsLabel(pick, sel.tops.length)}</summary><div class="ddbox">${tops.map(t => `<label class="chk"><input type="checkbox" data-top="${esc(t.name)}" ${sel.tops.includes(t.name) ? "checked" : ""} ${pick && sel.tops.length >= pick && !sel.tops.includes(t.name) ? "disabled" : ""}> ${esc(t.name)} ${t.price ? `<span class="mute">+${money(t.price)}</span>` : ""}</label>`).join("")}</div></details>` : ""}
-        ${state.cart.filter(l => l.name === it.name).map(lineHtml).join("")}
-      </div>`;
   };
   // Menu combo: gom các "Cơm N món" thành MỘT ô chọn món; tick 1 món -> giá combo 1 món, tick 2 món -> giá combo 2 món…
   const combos = items.filter(pickOf).sort((a, b) => pickOf(a) - pickOf(b)), maxPick = combos.length ? pickOf(combos[combos.length - 1]) : 0;
@@ -1361,14 +1350,18 @@ function drawOrder() {
   state.comboSel = comboSel;
   const comboOf = n => combos.find(c => pickOf(c) === n);
   const comboPriceText = n => comboOf(n) ? `${n} món · ${money(comboOf(n).variants[0].price)}` : "Chọn món để xem giá";
-  const comboHtml = () => !combos.length ? "" : `
-    <div class="item" data-combo data-f="${esc(fold(tops.map(t => t.name).join(" ")))}">
-      <div class="row"><div class="grow"><div class="n">Chọn món</div><div class="p" id="comboPrice">${comboPriceText(comboSel.length)}</div></div>
-        <button class="add" data-cadd ${open ? "" : "disabled"} title="Thêm vào giỏ" aria-label="Thêm vào giỏ">${I("plus")}</button></div>
-      <div class="mute" style="margin:4px 0">${combos.map(c => `${pickOf(c)} món: ${money(c.variants[0].price)}`).join(" · ")}</div>
-      <div class="ddbox" style="display:block">${tops.map(t => `<label class="chk"><input type="checkbox" data-ctop="${esc(t.name)}" ${comboSel.includes(t.name) ? "checked" : ""} ${comboSel.length >= maxPick && !comboSel.includes(t.name) ? "disabled" : ""}> ${esc(t.name)}</label>`).join("")}</div>
-      ${state.cart.filter(l => pickOf({ name: l.name })).map(lineHtml).join("")}
+  const comboStyle = catStyle("Combo");
+  const comboHtml = () => !combos.length ? "" : state.tileOpen !== "__combo"
+    ? `<div class="item tile ${state.cart.some(l => pickOf({ name: l.name })) ? "in" : ""}" data-n="__combo" data-f="${esc(fold(tops.map(t => t.name).join(" ")))}" style="${comboStyle}" data-tile role="button" tabindex="0"><span class="n">Chọn món (combo)</span></div>`
+    : `<div class="item detail" data-combo data-n="__combo" style="${comboStyle}">
+      <button type="button" class="backbtn" data-back>${I("back", "sm")} Chọn món khác</button>
+      <div class="dhead"><div class="n">Chọn món</div><div class="p">${combos.map(c => `${pickOf(c)} món: ${money(c.variants[0].price)}`).join(" · ")}</div></div>
+      <div class="og"><b>Món <small>chọn tối đa ${maxPick}</small></b><div class="ogrid tp">${tops.map(t => `<label class="cell"><input type="checkbox" data-ctop="${esc(t.name)}" ${comboSel.includes(t.name) ? "checked" : ""} ${comboSel.length >= maxPick && !comboSel.includes(t.name) ? "disabled" : ""}><span>${esc(t.name)}</span></label>`).join("")}</div></div>
+      <div class="addbar"><div class="grow"><b class="tot" id="comboPrice">${comboPriceText(comboSel.length)}</b></div><button class="primary fit" data-cadd ${open ? "" : "disabled"}>${I("plus", "sm")} Thêm vào giỏ</button></div>
+      ${state.cart.some(l => pickOf({ name: l.name })) ? `<div class="og"><b>Trong giỏ</b>${state.cart.filter(l => pickOf({ name: l.name })).map(lineHtml).join("")}</div>` : ""}
     </div>`;
+  if (!(items.some(i => i.name === state.tileOpen && !pickOf(i)) || (combos.length && state.tileOpen === "__combo"))) state.tileOpen = "";   // món đang xem không còn / đổi tab
+  const detail = !!state.tileOpen;
   const rest = combos.length ? items.filter(it => !pickOf(it)) : items;
   const groups = groupByCat(rest), cats = groups.map((g, i) => g.cat ? `<button class="chip" data-jump="${i}">${esc(g.cat)}</button>` : "").join("");
   // Menu dài: ô tìm món + nút nhảy tới từng mục, dính ở đầu màn hình khi cuộn
@@ -1376,15 +1369,14 @@ function drawOrder() {
       <div class="search">${I("search")}<input id="q" type="search" aria-label="Tìm món" placeholder="Tìm món (gõ không dấu cũng được)" value="${esc(state.q)}"></div>
       ${groups.filter(g => g.cat).length > 1 ? `<div class="chips">${cats}</div>` : ""}</div>` : "";
   // Cột phải (PC) / khối trên cùng (điện thoại, phiên nước): note + người đặt
-  const side = `<div id="side">${tiles ? notesCard(type) : ""}<div class="card" id="peopleCard"></div></div>`;
+  const side = `<div id="side">${notesCard(type)}<div class="card" id="peopleCard"></div></div>`;
   $("#panel").innerHTML = `
     ${state.data.session.kind ? "" : `<div class="tabs sm"><button data-t="com" class="${type === "com" ? "on" : ""}">${I("rice", "sm")} Cơm</button><button data-t="nuoc" class="${type === "nuoc" ? "on" : ""}">${I("cup", "sm")} Nước</button></div>`}
     ${shopHead(type)}
-    ${tiles ? side : notesCard(type)}
+    ${side}
     ${finder}
-    <div class="card ${tiles && !detail ? "tiles" : ""}" id="menuCard">${!menu.length ? `<div class="empty">${I("file")}Người mở phiên chưa nhập menu.${isOwner() ? `<br>Vào tab <b>Menu</b> để thêm món.` : "<br>Quay lại sau ít phút nhé."}</div>` :
-      items.length ? comboHtml() + (detail ? itemHtml(items.find(i => i.name === state.tileOpen)) : groups.map((g, i) => (g.cat ? `<div class="cat" data-ci="${i}"${tiles ? ` style="${catStyle(g.cat)}"` : ""}>${esc(g.cat)}</div>` : "") + g.items.map(itemHtml).join("")).join("")) + `<div class="empty hidden" id="noHit">${I("search")}Không có món nào khớp.</div>` : `<div class="empty">Không có món trong mục này.</div>`}</div>
-    ${tiles ? "" : side}`;
+    <div class="card ${detail ? "" : "tiles"}" id="menuCard">${!menu.length ? `<div class="empty">${I("file")}Người mở phiên chưa nhập menu.${isOwner() ? `<br>Vào tab <b>Menu</b> để thêm món.` : "<br>Quay lại sau ít phút nhé."}</div>` :
+      items.length ? (detail ? (state.tileOpen === "__combo" ? comboHtml() : itemHtml(items.find(i => i.name === state.tileOpen))) : comboHtml() + groups.map((g, i) => (g.cat ? `<div class="cat" data-ci="${i}"${` style="${catStyle(g.cat)}"`}>${esc(g.cat)}</div>` : "") + g.items.map(itemHtml).join("")).join("")) + `<div class="empty hidden" id="noHit">${I("search")}Không có món nào khớp.</div>` : `<div class="empty">Không có món trong mục này.</div>`}</div>`;
   paintPeople();
   applyFilter();
   const selOf = el => state.sel[el.closest(".item").dataset.n];
@@ -1403,7 +1395,6 @@ function drawOrder() {
     const box = e.closest(".item"), sel = selOf(e);
     sel.tops = [...box.querySelectorAll("input[data-top]:checked")].map(x => x.dataset.top);
     const pick = +box.dataset.pick;
-    const sm = box.querySelector("summary"); if (sm) sm.textContent = topsLabel(pick, sel.tops.length);
     if (pick) box.querySelectorAll("input[data-top]").forEach(x => x.disabled = sel.tops.length >= pick && !x.checked);
     paintSum();
   });
@@ -1423,11 +1414,10 @@ function drawOrder() {
     drawOrder();
     markCart();
   });
-  document.querySelectorAll("details[data-dd]").forEach(d => d.ontoggle = () => d.open ? state.ddOpen.add(d.dataset.dd) : state.ddOpen.delete(d.dataset.dd));
   document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
     const n = b.closest(".item").dataset.n, sel = state.sel[n], pick = +b.closest(".item").dataset.pick;
     if (pick && sel.tops.length !== pick) { state.ddOpen.add(n); drawOrder(); return toast(`Chọn đủ ${pick} món trong combo`); }
-    const l = { name: n, size: sel.size, toppings: tops.map(t => t.name).filter(x => sel.tops.includes(x)), qty: 1, note: tiles ? optNote(sel) : "" };
+    const l = { name: n, size: sel.size, toppings: tops.map(t => t.name).filter(x => sel.tops.includes(x)), qty: 1, note: optNote(sel) };
     const ex = state.cart.find(x => lineKey(x) === lineKey(l));
     // shortcut: dòng cùng (món, size, topping) gộp số lượng, giữ ghi chú cũ; chỉ điền đường/đá nếu dòng đó chưa có ghi chú
     if (ex) { ex.qty = Math.min(50, ex.qty + 1); if (!ex.note) ex.note = l.note; } else state.cart.push(l);
