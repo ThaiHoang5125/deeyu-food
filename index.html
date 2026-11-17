@@ -53,14 +53,30 @@
   /* PC (16:9): container rộng, trang đặt món chia 2 cột (menu | người đặt). Điện thoại giữ 1 cột. */
   @media (min-width:1024px) {
     main, .bar > div { max-width:1120px; }
-    #panel:has(#peopleCard) { display:grid; grid-template-columns:minmax(0,1fr) 380px; column-gap:20px; align-items:start; }
-    #panel:has(#peopleCard) > * { grid-column:1; }
-    #panel:has(#peopleCard) > #peopleCard { grid-column:2; grid-row:1 / span 20; position:sticky; top:calc(var(--head) + 12px); max-height:calc(100dvh - var(--head) - 150px); overflow:auto; }
+    #panel:has(#side) { display:grid; grid-template-columns:minmax(0,1fr) 380px; column-gap:20px; align-items:start; }
+    #panel:has(#side) > * { grid-column:1; }
+    /* Cột phải: note đứng yên ở trên, chỉ danh sách người đặt cuộn */
+    #panel:has(#side) > #side { grid-column:2; grid-row:1 / span 20; position:sticky; top:calc(var(--head) + 12px); display:flex; flex-direction:column; max-height:calc(100dvh - var(--head) - 150px); }
+    #side #peopleCard { flex:1; min-height:0; overflow:auto; max-height:none; }
   }
-  .opt { display:flex; align-items:center; gap:8px; margin-top:8px; }
-  .opt > b { flex:none; min-width:44px; font-size:12.5px; color:var(--mute); font-weight:600; }
-  .opt .chips { padding:0; flex:1; }
-  .opt .chip { min-height:34px; padding:3px 11px; font-size:13px; }
+  #panel:has(.tiles) #side #peopleCard { max-height:30dvh; overflow:auto; }   /*điện thoại: danh sách không đẩy menu đi quá xa */
+  /* Menu nước: lưới ô vuông bằng nhau; bấm ô để mở rộng tại chỗ */
+  #menuCard.tiles { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; background:none; box-shadow:none; padding:0; }
+  #menuCard.tiles > .cat, #menuCard.tiles > .empty { grid-column:1 / -1; }
+  .item.tile { aspect-ratio:1; display:flex; flex-direction:column; padding:0; border:0; background:var(--card); border-radius:var(--r-lg); box-shadow:var(--sh); overflow:hidden; }
+  .tile .thead { flex:1; display:flex; flex-direction:column; justify-content:space-between; gap:6px; width:100%; padding:12px; border:0; background:none; color:inherit; text-align:left; font:inherit; }
+  .tile .thead .n { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .tile.open { grid-column:1 / -1; aspect-ratio:auto; overflow:visible; }
+  .tile.open .thead { flex:none; flex-direction:row; align-items:center; }
+  .tile:not(.open) .tbody { display:none; }
+  .tbody { padding:0 12px 12px; }
+  .og { margin-top:10px; }
+  .og > b { display:block; font-size:12.5px; color:var(--mute); font-weight:600; margin-bottom:4px; }
+  .ogrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(76px,1fr)); gap:6px; }
+  .ogrid .chip, .ogrid label.cell { min-height:44px; padding:4px 8px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:13px; border:1.5px solid var(--line2); border-radius:12px; background:#fff; margin:0; font-weight:500; cursor:pointer; }
+  .ogrid label.cell input { position:absolute; opacity:0; pointer-events:none; }
+  .ogrid label.cell:has(input:checked) { border-color:var(--brand); background:var(--brand2); color:var(--brand); }
+  .ogrid label.cell:has(input:disabled) { opacity:.4; }
   .card { background:var(--card); border-radius:var(--r-lg); box-shadow:var(--sh); padding:16px; margin-bottom:12px; }
   h2 { font-size:16px; font-weight:700; letter-spacing:-.01em; line-height:1.3; margin:0 0 8px; }
   h2 .ic { color:var(--mute); margin-right:4px; }
@@ -1275,29 +1291,39 @@ const notesCard = type => {
 };
 // Đường/đá của đơn nước nằm ngay đầu ghi chú ("70% đường, Ít đá, ghi chú tay…"), nên không đổi API/DB
 const SUGAR = ["100%", "70%", "50%", "30%", "0%"].map(x => x + " đường"), ICE = ["Đủ đá", "Ít đá", "Không đá", "Đá riêng"];
-const optTokens = note => String(note || "").split(/,\s*/).filter(Boolean);
-function setOpt(note, group, v) {   // bấm lại chip đang chọn = bỏ chọn; shortcut: ghi chú tay có dấu phẩy bị chuẩn hoá thành ", "
-  const t = optTokens(note), cur = g => t.find(x => g.includes(x));
-  const pick = cur(group) === v ? "" : v;
-  const sugar = group === SUGAR ? pick : cur(SUGAR), ice = group === ICE ? pick : cur(ICE);
-  return [sugar, ice, ...t.filter(x => !SUGAR.includes(x) && !ICE.includes(x))].filter(Boolean).join(", ");
-}
+const optNote = sel => [sel.sugar, sel.ice].filter(Boolean).join(", ");
 function drawOrder() {
-  const { menu } = state.data, type = state.tab, open = isOpen();
+  const { menu } = state.data, type = state.tab, open = isOpen(), tiles = type === "nuoc";
   const items = drinkOptions(type), tops = toppingsOf(type);
   const lineHtml = l => `
     <div class="line" data-k="${esc(lineKey(l))}"><div class="row"><div class="grow mute">${esc([l.size, ...l.toppings.map(t => "+ " + t)].filter(Boolean).join(" · ") || "Trong giỏ")} · <b style="color:var(--ink)">${money(lineUnit(l) * l.qty)}</b></div>
       ${qtyHtml(l.qty, open)}</div>
-      ${type === "nuoc" ? [[SUGAR, "s"], [ICE, "i"]].map(([g, k]) => `<div class="opt"><b>${k === "s" ? "Đường" : "Đá"}</b><div class="chips">${g.map(v => `<button type="button" class="chip ${optTokens(l.note).includes(v) ? "on" : ""}" data-opt="${k}" data-v="${esc(v)}" ${open ? "" : "disabled"}>${esc(v.replace(" đường", ""))}</button>`).join("")}</div></div>`).join("") : ""}
       <input class="note" placeholder="Ghi chú riêng của bạn (ít đá, ít ngọt, ít cơm…)" maxlength="200" value="${esc(l.note)}" ${open ? "" : "disabled"}></div>`;
   // Combo "2 món 27K": ô tick là các món chọn kèm (giá 0) và phải chọn đúng số món ghi trong tên
   const pickOf = it => { const m = tops.length && tops.every(t => !t.price) && COMBO_RE.exec(it.name); return m ? parseInt(m[0]) : 0; };
   const topsLabel = (pick, n) => pick ? `Chọn món (${n}/${pick})` : n ? `Topping (${n})` : "Chọn topping";
   const itemHtml = it => {
-    const sel = state.sel[it.name] ||= { size: it.variants[0].size, tops: [] }, pick = pickOf(it);
+    const sel = state.sel[it.name] ||= { size: it.variants[0].size, tops: [], sugar: "", ice: "" }, pick = pickOf(it);
     if (!it.variants.some(v => v.size === sel.size)) sel.size = it.variants[0].size;
     sel.tops = sel.tops.filter(n => tops.some(t => t.name === n));
     const multi = it.variants.length > 1;
+    if (tiles) {   // ô vuông: gọn = tên + giá + số ly; bấm để mở 4 nhóm chọn (size / topping / đường / đá)
+      const opened = state.tileOpen === it.name, n = state.cart.reduce((q, l) => q + (l.name === it.name ? l.qty : 0), 0);
+      const from = Math.min(...it.variants.map(v => v.price)), cell = (k, v, label, on) => `<button type="button" class="chip ${on ? "on" : ""}" data-og="${k}" data-v="${esc(v)}" ${open ? "" : "disabled"}>${esc(label)}</button>`;
+      return `
+      <div class="item tile ${opened ? "open" : ""} ${n ? "in" : ""}" data-n="${esc(it.name)}" data-f="${esc(fold(it.name))}" data-pick="0">
+        <button type="button" class="thead" data-tile aria-expanded="${opened}"><div class="n">${esc(it.name)}</div>
+          <div class="row"><span class="p grow">${multi ? "từ " : ""}${money(from)}</span>${n ? `<span class="tag">×${n}</span>` : ""}</div></button>
+        <div class="tbody">
+          ${multi ? `<div class="og"><b>Size</b><div class="ogrid">${it.variants.map(v => `<button type="button" class="chip ${v.size === sel.size ? "on" : ""}" data-size="${esc(v.size)}">${v.size ? esc(v.size) : "Mặc định"} · ${money(v.price)}</button>`).join("")}</div></div>` : ""}
+          ${tops.length ? `<div class="og"><b>Topping</b><div class="ogrid">${tops.map(t => `<label class="cell"><input type="checkbox" data-top="${esc(t.name)}" ${sel.tops.includes(t.name) ? "checked" : ""}> ${esc(t.name)}${t.price ? ` +${money(t.price)}` : ""}</label>`).join("")}</div></div>` : ""}
+          <div class="og"><b>Đường</b><div class="ogrid">${SUGAR.map(v => cell("s", v, v.replace(" đường", ""), sel.sugar === v)).join("")}</div></div>
+          <div class="og"><b>Đá</b><div class="ogrid">${ICE.map(v => cell("i", v, v, sel.ice === v)).join("")}</div></div>
+          <button class="primary" data-add ${open ? "" : "disabled"}>${I("plus", "sm")} Thêm vào giỏ</button>
+          ${state.cart.filter(l => l.name === it.name).map(lineHtml).join("")}
+        </div>
+      </div>`;
+    }
     // Nhiều size: mỗi size một nút bấm (thay cho ô chọn), giá ghi ngay trên nút
     return `
       <div class="item ${state.cart.some(l => l.name === it.name) ? "in" : ""}" data-n="${esc(it.name)}" data-f="${esc(fold(it.name))}" data-pick="${pick}">
@@ -1328,14 +1354,16 @@ function drawOrder() {
   const finder = items.length > 8 ? `<div class="finder">
       <div class="search">${I("search")}<input id="q" type="search" aria-label="Tìm món" placeholder="Tìm món (gõ không dấu cũng được)" value="${esc(state.q)}"></div>
       ${groups.filter(g => g.cat).length > 1 ? `<div class="chips">${cats}</div>` : ""}</div>` : "";
+  // Cột phải (PC) / khối trên cùng (điện thoại, phiên nước): note + người đặt
+  const side = `<div id="side">${tiles ? notesCard(type) : ""}<div class="card" id="peopleCard"></div></div>`;
   $("#panel").innerHTML = `
     ${state.data.session.kind ? "" : `<div class="tabs sm"><button data-t="com" class="${type === "com" ? "on" : ""}">${I("rice", "sm")} Cơm</button><button data-t="nuoc" class="${type === "nuoc" ? "on" : ""}">${I("cup", "sm")} Nước</button></div>`}
     ${shopHead(type)}
-    ${notesCard(type)}
+    ${tiles ? side : notesCard(type)}
     ${finder}
-    <div class="card" id="menuCard">${!menu.length ? `<div class="empty">${I("file")}Người mở phiên chưa nhập menu.${isOwner() ? `<br>Vào tab <b>Menu</b> để thêm món.` : "<br>Quay lại sau ít phút nhé."}</div>` :
+    <div class="card ${tiles ? "tiles" : ""}" id="menuCard">${!menu.length ? `<div class="empty">${I("file")}Người mở phiên chưa nhập menu.${isOwner() ? `<br>Vào tab <b>Menu</b> để thêm món.` : "<br>Quay lại sau ít phút nhé."}</div>` :
       items.length ? comboHtml() + groups.map((g, i) => (g.cat ? `<div class="cat" data-ci="${i}">${esc(g.cat)}</div>` : "") + g.items.map(itemHtml).join("")).join("") + `<div class="empty hidden" id="noHit">${I("search")}Không có món nào khớp.</div>` : `<div class="empty">Không có món trong mục này.</div>`}</div>
-    <div class="card" id="peopleCard"></div>`;
+    ${tiles ? "" : side}`;
   paintPeople();
   applyFilter();
   const selOf = el => state.sel[el.closest(".item").dataset.n];
@@ -1353,7 +1381,7 @@ function drawOrder() {
     const box = e.closest(".item"), sel = selOf(e);
     sel.tops = [...box.querySelectorAll("input[data-top]:checked")].map(x => x.dataset.top);
     const pick = +box.dataset.pick;
-    box.querySelector("summary").textContent = topsLabel(pick, sel.tops.length);
+    const sm = box.querySelector("summary"); if (sm) sm.textContent = topsLabel(pick, sel.tops.length);
     if (pick) box.querySelectorAll("input[data-top]").forEach(x => x.disabled = sel.tops.length >= pick && !x.checked);
   });
   document.querySelectorAll("input[data-ctop]").forEach(e => e.onchange = () => {
@@ -1376,19 +1404,24 @@ function drawOrder() {
   document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
     const n = b.closest(".item").dataset.n, sel = state.sel[n], pick = +b.closest(".item").dataset.pick;
     if (pick && sel.tops.length !== pick) { state.ddOpen.add(n); drawOrder(); return toast(`Chọn đủ ${pick} món trong combo`); }
-    const l = { name: n, size: sel.size, toppings: tops.map(t => t.name).filter(x => sel.tops.includes(x)), qty: 1, note: "" };
+    const l = { name: n, size: sel.size, toppings: tops.map(t => t.name).filter(x => sel.tops.includes(x)), qty: 1, note: tiles ? optNote(sel) : "" };
     const ex = state.cart.find(x => lineKey(x) === lineKey(l));
-    if (ex) ex.qty = Math.min(50, ex.qty + 1); else state.cart.push(l);
+    // shortcut: dòng cùng (món, size, topping) gộp số lượng, giữ ghi chú cũ; chỉ điền đường/đá nếu dòng đó chưa có ghi chú
+    if (ex) { ex.qty = Math.min(50, ex.qty + 1); if (!ex.note) ex.note = l.note; } else state.cart.push(l);
     if (pick) sel.tops = [];   // combo kế tiếp chọn món lại từ đầu
     drawOrder();
     markCart();
   });
-  document.querySelectorAll(".line [data-opt]").forEach(b => b.onclick = () => {
-    const box = b.closest(".line"), l = state.cart.find(x => lineKey(x) === box.dataset.k);
-    l.note = setOpt(l.note, b.dataset.opt === "s" ? SUGAR : ICE, b.dataset.v);
-    box.querySelector("input.note").value = l.note;
-    box.querySelectorAll("[data-opt]").forEach(x => x.classList.toggle("on", optTokens(l.note).includes(x.dataset.v)));
-    markCart();
+  document.querySelectorAll("[data-tile]").forEach(b => b.onclick = () => {
+    const box = b.closest(".item"), n = box.dataset.n;
+    state.tileOpen = state.tileOpen === n ? "" : n;
+    document.querySelectorAll(".tile").forEach(t => { const o = t.dataset.n === state.tileOpen; t.classList.toggle("open", o); t.querySelector("[data-tile]").setAttribute("aria-expanded", o); });
+    if (state.tileOpen) box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
+  document.querySelectorAll("[data-og]").forEach(b => b.onclick = () => {   // đường / đá: bấm lại để bỏ chọn
+    const sel = selOf(b), k = b.dataset.og === "s" ? "sugar" : "ice";
+    sel[k] = sel[k] === b.dataset.v ? "" : b.dataset.v;
+    b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x.dataset.v === sel[k]));
   });
   document.querySelectorAll(".line input.note").forEach(i => i.oninput = () => { state.cart.find(x => lineKey(x) === i.closest(".line").dataset.k).note = i.value; markCart(); });
   paintBar();
