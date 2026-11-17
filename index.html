@@ -56,8 +56,15 @@
     #panel:has(#side) { display:grid; grid-template-columns:minmax(0,1fr) 380px; column-gap:20px; align-items:start; }
     #panel:has(#side) > * { grid-column:1; }
     /* Cột phải: note đứng yên ở trên, chỉ danh sách người đặt cuộn */
-    #panel:has(#side) > #side { grid-column:2; grid-row:1 / span 20; position:sticky; top:calc(var(--head) + 12px); display:flex; flex-direction:column; max-height:calc(100dvh - var(--head) - 150px); }
-    #side #peopleCard { flex:1; min-height:0; overflow:auto; max-height:none; }
+    #panel:has(#side) > #side { grid-column:2; grid-row:1 / span 20; position:sticky; top:calc(var(--head) + 12px); display:flex; flex-direction:column; max-height:calc(100dvh - var(--head) - 120px); }
+    #side #peopleCard { flex:1; min-height:160px; overflow:auto; max-height:none; }
+    #side .callout { flex:none; max-height:30dvh; overflow:auto; }
+    main, .bar > div { max-width:1280px; }
+    /* PC đủ chỗ: ô nước luôn hiện sẵn các nhóm chọn (không cần bấm mở), ô vuông tự cao thêm nếu nhiều topping */
+    #menuCard .tile { aspect-ratio:1; overflow:visible; }
+    #menuCard .tile .thead { flex:none; flex-direction:row; align-items:baseline; justify-content:space-between; pointer-events:none; padding-bottom:4px; }
+    #menuCard .tile .thead .n { font-size:16px; -webkit-line-clamp:2; }
+    #menuCard .tile .thead .row { flex:none; }
   }
   #panel:has(.tiles) #side #peopleCard { max-height:30dvh; overflow:auto; }   /*điện thoại: danh sách không đẩy menu đi quá xa */
   /* Menu nước: lưới ô vuông bằng nhau; bấm ô để mở rộng tại chỗ */
@@ -66,14 +73,14 @@
   .item.tile { aspect-ratio:1; display:flex; flex-direction:column; padding:0; border:0; background:var(--card); border-radius:var(--r-lg); box-shadow:var(--sh); overflow:hidden; }
   .tile .thead { flex:1; display:flex; flex-direction:column; justify-content:space-between; gap:6px; width:100%; padding:12px; border:0; background:none; color:inherit; text-align:left; font:inherit; }
   .tile .thead .n { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-  .tile.open { grid-column:1 / -1; aspect-ratio:auto; overflow:visible; }
-  .tile.open .thead { flex:none; flex-direction:row; align-items:center; }
-  .tile:not(.open) .tbody { display:none; }
+  .item.tile { aspect-ratio:auto; min-height:170px; overflow:visible; }
+  .tbody { display:block; }
+  .tile .thead { flex:none; pointer-events:none; padding-bottom:4px; }
   .tbody { padding:0 12px 12px; }
   .og { margin-top:10px; }
   .og > b { display:block; font-size:12.5px; color:var(--mute); font-weight:600; margin-bottom:4px; }
-  .ogrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(76px,1fr)); gap:6px; }
-  .ogrid .chip, .ogrid label.cell { min-height:44px; padding:4px 8px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:13px; border:1.5px solid var(--line2); border-radius:12px; background:#fff; margin:0; font-weight:500; cursor:pointer; }
+  .ogrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); gap:5px; }
+  .ogrid .chip, .ogrid label.cell { min-height:38px; padding:3px 6px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:12.5px; line-height:1.2; border:1.5px solid var(--line2); border-radius:12px; background:#fff; margin:0; font-weight:500; cursor:pointer; }
   .ogrid label.cell input { position:absolute; opacity:0; pointer-events:none; }
   .ogrid label.cell:has(input:checked) { border-color:var(--brand); background:var(--brand2); color:var(--brand); }
   .ogrid label.cell:has(input:disabled) { opacity:.4; }
