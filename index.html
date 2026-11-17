@@ -52,38 +52,46 @@
   @media (min-width:768px) { main { padding:24px 24px 136px; } }
   /* PC (16:9): container rộng, trang đặt món chia 2 cột (menu | người đặt). Điện thoại giữ 1 cột. */
   @media (min-width:1024px) {
-    main, .bar > div { max-width:1120px; }
     #panel:has(#side) { display:grid; grid-template-columns:minmax(0,1fr) 380px; column-gap:20px; align-items:start; }
     #panel:has(#side) > * { grid-column:1; }
     /* Cột phải: note đứng yên ở trên, chỉ danh sách người đặt cuộn */
     #panel:has(#side) > #side { grid-column:2; grid-row:1 / span 20; position:sticky; top:calc(var(--head) + 12px); display:flex; flex-direction:column; max-height:calc(100dvh - var(--head) - 120px); }
     #side #peopleCard { flex:1; min-height:160px; overflow:auto; max-height:none; }
     #side .callout { flex:none; max-height:30dvh; overflow:auto; }
-    main, .bar > div { max-width:1280px; }
-    /* PC đủ chỗ: ô nước luôn hiện sẵn các nhóm chọn (không cần bấm mở), ô vuông tự cao thêm nếu nhiều topping */
-    #menuCard .tile { aspect-ratio:1; overflow:visible; }
-    #menuCard .tile .thead { flex:none; flex-direction:row; align-items:baseline; justify-content:space-between; pointer-events:none; padding-bottom:4px; }
-    #menuCard .tile .thead .n { font-size:16px; -webkit-line-clamp:2; }
-    #menuCard .tile .thead .row { flex:none; }
+    body.wide main, body.wide .bar > div { max-width:1280px; }   /* chỉ trang đặt món; đăng nhập, trang chủ… giữ khung 640px căn giữa */
   }
-  #panel:has(.tiles) #side #peopleCard { max-height:30dvh; overflow:auto; }   /*điện thoại: danh sách không đẩy menu đi quá xa */
-  /* Menu nước: lưới ô vuông bằng nhau; bấm ô để mở rộng tại chỗ */
-  #menuCard.tiles { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; background:none; box-shadow:none; padding:0; }
+  /* Menu nước: lưới ô nhỏ chỉ có tên, chia theo loại; bấm một ô để sang màn chọn size/topping/đường/đá */
+  #menuCard.tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; background:none; box-shadow:none; padding:0; }
   #menuCard.tiles > .cat, #menuCard.tiles > .empty { grid-column:1 / -1; }
-  .item.tile { aspect-ratio:1; display:flex; flex-direction:column; padding:0; border:0; background:var(--card); border-radius:var(--r-lg); box-shadow:var(--sh); overflow:hidden; }
-  .tile .thead { flex:1; display:flex; flex-direction:column; justify-content:space-between; gap:6px; width:100%; padding:12px; border:0; background:none; color:inherit; text-align:left; font:inherit; }
-  .tile .thead .n { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-  .item.tile { aspect-ratio:auto; min-height:170px; overflow:visible; }
-  .tbody { display:block; }
-  .tile .thead { flex:none; pointer-events:none; padding-bottom:4px; }
-  .tbody { padding:0 12px 12px; }
-  .og { margin-top:10px; }
-  .og > b { display:block; font-size:12.5px; color:var(--mute); font-weight:600; margin-bottom:4px; }
-  .ogrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); gap:5px; }
-  .ogrid .chip, .ogrid label.cell { min-height:38px; padding:3px 6px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:12.5px; line-height:1.2; border:1.5px solid var(--line2); border-radius:12px; background:#fff; margin:0; font-weight:500; cursor:pointer; }
+  .item.tile { position:relative; display:flex; align-items:center; justify-content:center; text-align:center; min-height:64px; padding:10px 12px; border:0; background:var(--c2,var(--card)); color:var(--c,var(--ink)); border-radius:14px; cursor:pointer; transition:transform .1s, box-shadow .15s; }
+  .item.tile:hover { box-shadow:var(--sh2); transform:translateY(-1px); }
+  .item.tile.in { box-shadow:inset 0 0 0 2px var(--c); }
+  .tile .n { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:14.5px; font-weight:700; line-height:1.3; }
+  .tile .tag { position:absolute; top:5px; right:5px; padding:1px 7px; background:var(--c); color:#fff; font-size:11px; }
+  #menuCard.tiles > .cat { display:flex; align-items:center; gap:8px; }
+  #menuCard.tiles > .cat::before { content:""; width:10px; height:10px; border-radius:50%; background:var(--c); flex:none; }
+  .backbtn { display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:0 14px 0 10px; margin-bottom:10px; border:0; border-radius:12px; background:var(--brand2); color:var(--brand); font-weight:600; font-size:14px; }
+  .dhead { background:var(--c2); border-radius:14px; padding:14px 16px; }
+  .dhead .n { font-size:20px; font-weight:800; letter-spacing:-.01em; color:var(--c); }
+  .dhead .p { font-size:14px; font-weight:600; color:var(--ink2); margin-top:2px; }
+  .og { margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+  .og > b { display:block; font-size:14.5px; font-weight:700; margin-bottom:8px; }
+  .og > b small { font-size:12px; font-weight:500; color:var(--mute); margin-left:6px; }
+  .ogrid { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); }
+  .ogrid.g5 { grid-template-columns:repeat(5,1fr); } .ogrid.g4 { grid-template-columns:repeat(4,1fr); }
+  .ogrid .chip, .ogrid label.cell { position:relative; min-height:52px; margin:0; padding:6px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; text-align:center; font-size:13.5px; font-weight:600; line-height:1.25; border:1.5px solid var(--line2); border-radius:12px; background:#fff; color:var(--ink); cursor:pointer; }
+  .ogrid.g5 .chip, .ogrid.g4 .chip { min-height:44px; padding:4px 2px; }
+  .ogrid small { font-size:12px; font-weight:500; color:var(--mute); }
+  .ogrid .chip.on, .ogrid label.cell:has(input:checked) { border-color:var(--c); background:var(--c2); color:var(--c); }
+  .ogrid .chip.on small, .ogrid label.cell:has(input:checked) small { color:var(--c); }
   .ogrid label.cell input { position:absolute; opacity:0; pointer-events:none; }
-  .ogrid label.cell:has(input:checked) { border-color:var(--brand); background:var(--brand2); color:var(--brand); }
+  .ogrid label.cell:has(input:checked)::after { content:"✓"; position:absolute; top:3px; right:6px; font-size:12px; font-weight:800; }
   .ogrid label.cell:has(input:disabled) { opacity:.4; }
+  /* Thanh dính đáy màn chi tiết: tóm tắt lựa chọn + tổng + nút thêm (chừa chỗ thanh giỏ toàn cục .bar) */
+  .addbar { position:sticky; bottom:104px; z-index:3; display:flex; align-items:center; gap:12px; margin-top:18px; padding:10px 12px; background:#fff; border-radius:14px; box-shadow:var(--sh2), 0 0 0 1px var(--line); }
+  .addbar .sum { font-size:12.5px; color:var(--mute); line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .addbar .tot { color:var(--c); }
+  .addbar button.primary { width:auto; margin:0; flex:none; background:var(--c); box-shadow:none; }
   .card { background:var(--card); border-radius:var(--r-lg); box-shadow:var(--sh); padding:16px; margin-bottom:12px; }
   h2 { font-size:16px; font-weight:700; letter-spacing:-.01em; line-height:1.3; margin:0 0 8px; }
   h2 .ic { color:var(--mute); margin-right:4px; }
@@ -559,6 +567,7 @@ function render() {
   $("#fwdBtn").disabled = d >= maxD;
   $("#homeBtn").disabled = state.view === "home";
   $("#homeBtn").classList.toggle("hidden", state.view === "home");
+  document.body.classList.toggle("wide", !!u && state.view === "session");
   setBar("");
   if (!u) return viewLogin();
   if (state.view === "create") return viewCreate();
@@ -1298,10 +1307,15 @@ const notesCard = type => {
 };
 // Đường/đá của đơn nước nằm ngay đầu ghi chú ("70% đường, Ít đá, ghi chú tay…"), nên không đổi API/DB
 const SUGAR = ["100%", "70%", "50%", "30%", "0%"].map(x => x + " đường"), ICE = ["Đủ đá", "Ít đá", "Không đá", "Đá riêng"];
+// Màu theo loại nước: hash tên loại -> 1 trong 8 tông (ổn định giữa các lần tải)
+const CAT_COLORS = [["#2f9e44", "#ebfbee"], ["#e8590c", "#fff4e6"], ["#d6336c", "#fff0f6"], ["#7048e8", "#f3f0ff"], ["#1c7ed6", "#e7f5ff"], ["#b36b00", "#fff9db"], ["#0c8599", "#e3fafc"], ["#8a5a3c", "#f7efe8"]];
+const catStyle = cat => { const [c, c2] = CAT_COLORS[[...String(cat || "")].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7) % CAT_COLORS.length]; return `--c:${c};--c2:${c2}`; };
 const optNote = sel => [sel.sugar, sel.ice].filter(Boolean).join(", ");
 function drawOrder() {
   const { menu } = state.data, type = state.tab, open = isOpen(), tiles = type === "nuoc";
   const items = drinkOptions(type), tops = toppingsOf(type);
+  if (!(tiles && items.some(i => i.name === state.tileOpen))) state.tileOpen = "";   // món đang xem không còn / đổi tab
+  const detail = tiles && !!state.tileOpen;
   const lineHtml = l => `
     <div class="line" data-k="${esc(lineKey(l))}"><div class="row"><div class="grow mute">${esc([l.size, ...l.toppings.map(t => "+ " + t)].filter(Boolean).join(" · ") || "Trong giỏ")} · <b style="color:var(--ink)">${money(lineUnit(l) * l.qty)}</b></div>
       ${qtyHtml(l.qty, open)}</div>
@@ -1314,21 +1328,21 @@ function drawOrder() {
     if (!it.variants.some(v => v.size === sel.size)) sel.size = it.variants[0].size;
     sel.tops = sel.tops.filter(n => tops.some(t => t.name === n));
     const multi = it.variants.length > 1;
-    if (tiles) {   // ô vuông: gọn = tên + giá + số ly; bấm để mở 4 nhóm chọn (size / topping / đường / đá)
-      const opened = state.tileOpen === it.name, n = state.cart.reduce((q, l) => q + (l.name === it.name ? l.qty : 0), 0);
-      const from = Math.min(...it.variants.map(v => v.price)), cell = (k, v, label, on) => `<button type="button" class="chip ${on ? "on" : ""}" data-og="${k}" data-v="${esc(v)}" ${open ? "" : "disabled"}>${esc(label)}</button>`;
+    if (tiles) {   // danh sách: ô nhỏ chỉ có tên (màu theo loại); bấm vào thì sang màn chọn size / topping / đường / đá
+      const n = state.cart.reduce((q, l) => q + (l.name === it.name ? l.qty : 0), 0), cs = catStyle(it.category), dn = `data-n="${esc(it.name)}" data-f="${esc(fold(it.name))}" data-pick="0" style="${cs}"`;
+      if (state.tileOpen !== it.name) return `<div class="item tile ${n ? "in" : ""}" ${dn} data-tile role="button" tabindex="0"><span class="n">${esc(it.name)}</span>${n ? `<span class="tag">×${n}</span>` : ""}</div>`;
+      const from = Math.min(...it.variants.map(v => v.price)), mine = state.cart.filter(l => l.name === it.name);
+      const btn = (k, v, label, on) => `<button type="button" class="chip ${on ? "on" : ""}" data-og="${k}" data-v="${esc(v)}" ${open ? "" : "disabled"}>${esc(label)}</button>`;
       return `
-      <div class="item tile ${opened ? "open" : ""} ${n ? "in" : ""}" data-n="${esc(it.name)}" data-f="${esc(fold(it.name))}" data-pick="0">
-        <button type="button" class="thead" data-tile aria-expanded="${opened}"><div class="n">${esc(it.name)}</div>
-          <div class="row"><span class="p grow">${multi ? "từ " : ""}${money(from)}</span>${n ? `<span class="tag">×${n}</span>` : ""}</div></button>
-        <div class="tbody">
-          ${multi ? `<div class="og"><b>Size</b><div class="ogrid">${it.variants.map(v => `<button type="button" class="chip ${v.size === sel.size ? "on" : ""}" data-size="${esc(v.size)}">${v.size ? esc(v.size) : "Mặc định"} · ${money(v.price)}</button>`).join("")}</div></div>` : ""}
-          ${tops.length ? `<div class="og"><b>Topping</b><div class="ogrid">${tops.map(t => `<label class="cell"><input type="checkbox" data-top="${esc(t.name)}" ${sel.tops.includes(t.name) ? "checked" : ""}> ${esc(t.name)}${t.price ? ` +${money(t.price)}` : ""}</label>`).join("")}</div></div>` : ""}
-          <div class="og"><b>Đường</b><div class="ogrid">${SUGAR.map(v => cell("s", v, v.replace(" đường", ""), sel.sugar === v)).join("")}</div></div>
-          <div class="og"><b>Đá</b><div class="ogrid">${ICE.map(v => cell("i", v, v, sel.ice === v)).join("")}</div></div>
-          <button class="primary" data-add ${open ? "" : "disabled"}>${I("plus", "sm")} Thêm vào giỏ</button>
-          ${state.cart.filter(l => l.name === it.name).map(lineHtml).join("")}
-        </div>
+      <div class="item detail" ${dn}>
+        <button type="button" class="backbtn" data-back>${I("back", "sm")} Chọn món khác</button>
+        <div class="dhead"><div class="n">${esc(it.name)}</div><div class="p">${multi ? "từ " : ""}${money(from)}${it.category ? ` · ${esc(it.category)}` : ""}</div></div>
+        ${multi ? `<div class="og"><b>Size <small>chọn 1</small></b><div class="ogrid sz">${it.variants.map(v => `<button type="button" class="chip ${v.size === sel.size ? "on" : ""}" data-size="${esc(v.size)}"><span>${v.size ? esc(v.size) : "Mặc định"}</span><small>${money(v.price)}</small></button>`).join("")}</div></div>` : ""}
+        ${tops.length ? `<div class="og"><b>Topping <small>chọn nhiều</small></b><div class="ogrid tp">${tops.map(t => `<label class="cell"><input type="checkbox" data-top="${esc(t.name)}" ${sel.tops.includes(t.name) ? "checked" : ""}><span>${esc(t.name)}</span><small>${t.price ? "+" + money(t.price) : "miễn phí"}</small></label>`).join("")}</div></div>` : ""}
+        <div class="og"><b>Đường <small>chọn 1</small></b><div class="ogrid g5">${SUGAR.map(v => btn("s", v, v.replace(" đường", ""), sel.sugar === v)).join("")}</div></div>
+        <div class="og"><b>Đá <small>chọn 1</small></b><div class="ogrid g4">${ICE.map(v => btn("i", v, v, sel.ice === v)).join("")}</div></div>
+        <div class="addbar"><div class="grow"><div class="sum" id="dsum"></div><b class="tot" id="dtot"></b></div><button class="primary fit" data-add ${open ? "" : "disabled"}>${I("plus", "sm")} Thêm vào giỏ</button></div>
+        ${mine.length ? `<div class="og"><b>Trong giỏ</b>${mine.map(lineHtml).join("")}</div>` : ""}
       </div>`;
     }
     // Nhiều size: mỗi size một nút bấm (thay cho ô chọn), giá ghi ngay trên nút
@@ -1358,7 +1372,7 @@ function drawOrder() {
   const rest = combos.length ? items.filter(it => !pickOf(it)) : items;
   const groups = groupByCat(rest), cats = groups.map((g, i) => g.cat ? `<button class="chip" data-jump="${i}">${esc(g.cat)}</button>` : "").join("");
   // Menu dài: ô tìm món + nút nhảy tới từng mục, dính ở đầu màn hình khi cuộn
-  const finder = items.length > 8 ? `<div class="finder">
+  const finder = items.length > 8 && !detail ? `<div class="finder">
       <div class="search">${I("search")}<input id="q" type="search" aria-label="Tìm món" placeholder="Tìm món (gõ không dấu cũng được)" value="${esc(state.q)}"></div>
       ${groups.filter(g => g.cat).length > 1 ? `<div class="chips">${cats}</div>` : ""}</div>` : "";
   // Cột phải (PC) / khối trên cùng (điện thoại, phiên nước): note + người đặt
@@ -1368,8 +1382,8 @@ function drawOrder() {
     ${shopHead(type)}
     ${tiles ? side : notesCard(type)}
     ${finder}
-    <div class="card ${tiles ? "tiles" : ""}" id="menuCard">${!menu.length ? `<div class="empty">${I("file")}Người mở phiên chưa nhập menu.${isOwner() ? `<br>Vào tab <b>Menu</b> để thêm món.` : "<br>Quay lại sau ít phút nhé."}</div>` :
-      items.length ? comboHtml() + groups.map((g, i) => (g.cat ? `<div class="cat" data-ci="${i}">${esc(g.cat)}</div>` : "") + g.items.map(itemHtml).join("")).join("") + `<div class="empty hidden" id="noHit">${I("search")}Không có món nào khớp.</div>` : `<div class="empty">Không có món trong mục này.</div>`}</div>
+    <div class="card ${tiles && !detail ? "tiles" : ""}" id="menuCard">${!menu.length ? `<div class="empty">${I("file")}Người mở phiên chưa nhập menu.${isOwner() ? `<br>Vào tab <b>Menu</b> để thêm món.` : "<br>Quay lại sau ít phút nhé."}</div>` :
+      items.length ? comboHtml() + (detail ? itemHtml(items.find(i => i.name === state.tileOpen)) : groups.map((g, i) => (g.cat ? `<div class="cat" data-ci="${i}"${tiles ? ` style="${catStyle(g.cat)}"` : ""}>${esc(g.cat)}</div>` : "") + g.items.map(itemHtml).join("")).join("")) + `<div class="empty hidden" id="noHit">${I("search")}Không có món nào khớp.</div>` : `<div class="empty">Không có món trong mục này.</div>`}</div>
     ${tiles ? "" : side}`;
   paintPeople();
   applyFilter();
@@ -1383,6 +1397,7 @@ function drawOrder() {
   document.querySelectorAll(".chip[data-size]").forEach(b => b.onclick = () => {
     selOf(b).size = b.dataset.size;
     b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b));
+    paintSum();
   });
   document.querySelectorAll("input[data-top]").forEach(e => e.onchange = () => {
     const box = e.closest(".item"), sel = selOf(e);
@@ -1390,6 +1405,7 @@ function drawOrder() {
     const pick = +box.dataset.pick;
     const sm = box.querySelector("summary"); if (sm) sm.textContent = topsLabel(pick, sel.tops.length);
     if (pick) box.querySelectorAll("input[data-top]").forEach(x => x.disabled = sel.tops.length >= pick && !x.checked);
+    paintSum();
   });
   document.querySelectorAll("input[data-ctop]").forEach(e => e.onchange = () => {
     const box = e.closest(".item");
@@ -1419,16 +1435,21 @@ function drawOrder() {
     drawOrder();
     markCart();
   });
-  document.querySelectorAll("[data-tile]").forEach(b => b.onclick = () => {
-    const box = b.closest(".item"), n = box.dataset.n;
-    state.tileOpen = state.tileOpen === n ? "" : n;
-    document.querySelectorAll(".tile").forEach(t => { const o = t.dataset.n === state.tileOpen; t.classList.toggle("open", o); t.querySelector("[data-tile]").setAttribute("aria-expanded", o); });
-    if (state.tileOpen) box.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  });
+  const paintSum = () => {   // tóm tắt lựa chọn + giá tạm tính ở thanh dính đáy
+    const d = $(".detail"), it = d && items.find(i => i.name === d.dataset.n); if (!it) return;
+    const sel = state.sel[it.name], v = it.variants.find(x => x.size === sel.size) || it.variants[0], tp = sel.tops.map(n => tops.find(t => t.name === n)).filter(Boolean);
+    $("#dsum").textContent = [v.size, ...tp.map(t => "+ " + t.name), sel.sugar, sel.ice].filter(Boolean).join(" · ") || "Chưa chọn tuỳ chọn";
+    $("#dtot").textContent = money(v.price + tp.reduce((s, t) => s + t.price, 0));
+  };
+  paintSum();
+  const goTile = n => { state.tileOpen = n; state.q = ""; drawOrder(); window.scrollTo({ top: 0 }); };
+  document.querySelectorAll("[data-tile]").forEach(b => { b.onclick = () => goTile(b.dataset.n); b.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goTile(b.dataset.n); } }; });
+  document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => goTile(""));
   document.querySelectorAll("[data-og]").forEach(b => b.onclick = () => {   // đường / đá: bấm lại để bỏ chọn
     const sel = selOf(b), k = b.dataset.og === "s" ? "sugar" : "ice";
     sel[k] = sel[k] === b.dataset.v ? "" : b.dataset.v;
     b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x.dataset.v === sel[k]));
+    paintSum();
   });
   document.querySelectorAll(".line input.note").forEach(i => i.oninput = () => { state.cart.find(x => lineKey(x) === i.closest(".line").dataset.k).note = i.value; markCart(); });
   paintBar();
