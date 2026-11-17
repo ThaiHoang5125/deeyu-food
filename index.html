@@ -1585,6 +1585,9 @@ const deliveryText = s => s.delivery === "now" ? "giao liền" : s.delivery ? `g
 const summaryTail = s => [s.owner_phone, s.place, deliveryText(s)].filter(Boolean).join(", ") + "." + (s.extra_full && s.kind !== "nuoc" ? " Cơm thêm đầy đủ." : "");
 // Đơn tính vào tin nhắn: đặt trước chỉ tính đơn đã chuyển khoản
 const summaryOrders = () => state.data.session.prepay ? state.data.orders.filter(o => o.paid) : state.data.orders;
+// Phiên chuyển khoản trước: số người chưa "Đã trả" – đơn của họ chưa vào tin nhắn gửi quán
+const unpaidPeople = () => state.data.session.prepay ? new Set(state.data.orders.filter(o => !o.paid).map(o => o.phone)).size : 0;
+const unpaidNoteHtml = () => { const n = unpaidPeople(); return n ? `<div class="mute" style="margin-bottom:8px">⚠ ${n} người chưa thanh toán – đơn của họ chưa hiện trong tin nhắn.</div>` : ""; };
 function buildSummary() {
   const { session: s } = state.data, agg = {};
   summaryOrders().forEach(o => {
@@ -2130,6 +2133,7 @@ function drawManage() {
         <pre class="sum" id="sum">${esc(buildSummary())}</pre>
         <div id="noteSel" style="margin-bottom:8px"></div>
         ${state.data.session.prepay ? `<div class="mute" style="margin-bottom:8px">Phiên yêu cầu chuyển khoản trước: tin nhắn chỉ tính đơn đã đánh dấu "Đã trả".</div>` : ""}
+        <div id="unpaidNote">${unpaidNoteHtml()}</div>
         <button class="ghost w100" id="copy">${I("copy", "sm")} Copy tin nhắn</button>
         ${S.kind === "nuoc" ? "" : `<label class="chk mt3"><input type="checkbox" id="extraFull" ${S.extra_full ? "checked" : ""}> Cơm thêm đầy đủ</label>
         <div class="mute">Tick nếu cần – tin nhắn sẽ thêm dòng "Cơm thêm đầy đủ."</div>`}
@@ -2252,7 +2256,8 @@ function drawManage() {
   if (P === "close") {
     setBar(`<button class="${isOpen() ? "primary" : "ghost plain w100"}" id="lock" style="margin:0;min-height:50px">${isOpen() ? `${I("lock", "sm")} Chốt đơn – khóa đặt món` : `${I("unlock", "sm")} Mở lại phiên`}</button>`);
     $("#lock").onclick = async () => {
-      if (isOpen() && !await ask("Chốt đơn?\nMọi người sẽ không đặt thêm hay sửa đơn được. Bạn có thể mở lại sau.", "Chốt đơn")) return;
+      const n = unpaidPeople();
+      if (isOpen() && !await ask(`Chốt đơn?\nMọi người sẽ không đặt thêm hay sửa đơn được. Bạn có thể mở lại sau.${n ? `\n\n⚠ ${n} người chưa thanh toán nên đơn của họ chưa hiện trong tin nhắn gửi quán.` : ""}`, "Chốt đơn")) return;
       try { await api("setStatus", { id: state.sid, status: isOpen() ? "locked" : "open" }); await refreshSession(); } catch (e) { toast(e.message); }
     };
   } else setBar("");
@@ -2263,6 +2268,7 @@ function paintManageOrders() {
   if (state.panel === "unpaid") return paintUnpaid();
   $("#ordersCard").innerHTML = `<h2>Đơn của mọi người</h2>${ordersByPerson(state.data.orders, true)}`;
   $("#kpiBox").innerHTML = closeKpis();
+  $("#unpaidNote").innerHTML = unpaidNoteHtml();
   paintNoteSel();
   $("#detail").textContent = buildDetail();
   paintTabs();
