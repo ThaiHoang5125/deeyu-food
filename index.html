@@ -50,6 +50,17 @@
   /* ===== BỐ CỤC CHUNG ===== */
   main { max-width:640px; margin:0 auto; padding:12px 16px 136px; }
   @media (min-width:768px) { main { padding:24px 24px 136px; } }
+  /* PC (16:9): container rộng, trang đặt món chia 2 cột (menu | người đặt). Điện thoại giữ 1 cột. */
+  @media (min-width:1024px) {
+    main, .bar > div { max-width:1120px; }
+    #panel:has(#peopleCard) { display:grid; grid-template-columns:minmax(0,1fr) 380px; column-gap:20px; align-items:start; }
+    #panel:has(#peopleCard) > * { grid-column:1; }
+    #panel:has(#peopleCard) > #peopleCard { grid-column:2; grid-row:1 / span 20; position:sticky; top:calc(var(--head) + 12px); max-height:calc(100dvh - var(--head) - 150px); overflow:auto; }
+  }
+  .opt { display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .opt > b { flex:none; min-width:44px; font-size:12.5px; color:var(--mute); font-weight:600; }
+  .opt .chips { padding:0; flex:1; }
+  .opt .chip { min-height:34px; padding:3px 11px; font-size:13px; }
   .card { background:var(--card); border-radius:var(--r-lg); box-shadow:var(--sh); padding:16px; margin-bottom:12px; }
   h2 { font-size:16px; font-weight:700; letter-spacing:-.01em; line-height:1.3; margin:0 0 8px; }
   h2 .ic { color:var(--mute); margin-right:4px; }
@@ -229,7 +240,7 @@
   .bar { position:fixed; left:0; right:0; bottom:0; z-index:6; background:#fff; box-shadow:var(--sh-up); border-radius:20px 20px 0 0; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); }
   .bar > div { max-width:640px; margin:0 auto; }
   .bar button.primary { margin-top:0; }
-  .cartbox { max-height:45vh; overflow:auto; border-bottom:1px solid var(--line); margin-bottom:12px; padding-bottom:4px; }
+  .cartbox { max-height:45vh; max-height:45dvh; overflow:auto; border-bottom:1px solid var(--line); margin-bottom:12px; padding-bottom:4px; }
   .cartbox .row { padding:8px 0; }
   .cartbox .row + .row { border-top:1px solid var(--line); }
   .cartbar { display:flex; align-items:center; gap:10px; }
@@ -248,7 +259,7 @@
   .sheet { position:fixed; left:0; right:0; bottom:0; z-index:21; max-width:520px; margin:0 auto; background:#fff; border-radius:24px 24px 0 0; padding:10px 20px calc(20px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .22s cubic-bezier(.2,.8,.2,1); box-shadow:0 -10px 40px rgba(31,26,20,.15); }
   .sheet-bg.show { opacity:1; } .sheet.show { transform:none; }
   .sheet .grab { width:40px; height:4px; border-radius:4px; background:var(--line2); margin:0 auto 16px; }
-  .sheet .msg { font-size:15.5px; white-space:pre-line; margin:0 0 20px; max-height:60vh; overflow-y:auto; }
+  .sheet .msg { font-size:15.5px; white-space:pre-line; margin:0 0 20px; max-height:60vh; max-height:60dvh; overflow-y:auto; }
   .sheet .acts { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .sheet .acts button { margin:0; min-height:50px; }
   .toast { position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translateX(-50%); max-width:calc(100% - 32px); width:max-content; text-align:center; background:var(--ink); color:#fff; padding:10px 16px; border-radius:99px; font-size:14px; font-weight:500; z-index:30; box-shadow:0 8px 24px rgba(31,26,20,.25); animation:toastIn .18s ease-out; }
@@ -1262,12 +1273,22 @@ const notesCard = type => {
   const l = parseNotes(state.data.session.note)[type];
   return l.length ? `<div class="callout">${I("info", "sm")}<div><b>Lưu ý món ${TYPE_INFO[type].label}</b><br>${l.map(esc).join("<br>")}</div></div>` : "";
 };
+// Đường/đá của đơn nước nằm ngay đầu ghi chú ("70% đường, Ít đá, ghi chú tay…"), nên không đổi API/DB
+const SUGAR = ["100%", "70%", "50%", "30%", "0%"].map(x => x + " đường"), ICE = ["Đủ đá", "Ít đá", "Không đá", "Đá riêng"];
+const optTokens = note => String(note || "").split(/,\s*/).filter(Boolean);
+function setOpt(note, group, v) {   // bấm lại chip đang chọn = bỏ chọn; shortcut: ghi chú tay có dấu phẩy bị chuẩn hoá thành ", "
+  const t = optTokens(note), cur = g => t.find(x => g.includes(x));
+  const pick = cur(group) === v ? "" : v;
+  const sugar = group === SUGAR ? pick : cur(SUGAR), ice = group === ICE ? pick : cur(ICE);
+  return [sugar, ice, ...t.filter(x => !SUGAR.includes(x) && !ICE.includes(x))].filter(Boolean).join(", ");
+}
 function drawOrder() {
   const { menu } = state.data, type = state.tab, open = isOpen();
   const items = drinkOptions(type), tops = toppingsOf(type);
   const lineHtml = l => `
     <div class="line" data-k="${esc(lineKey(l))}"><div class="row"><div class="grow mute">${esc([l.size, ...l.toppings.map(t => "+ " + t)].filter(Boolean).join(" · ") || "Trong giỏ")} · <b style="color:var(--ink)">${money(lineUnit(l) * l.qty)}</b></div>
       ${qtyHtml(l.qty, open)}</div>
+      ${type === "nuoc" ? [[SUGAR, "s"], [ICE, "i"]].map(([g, k]) => `<div class="opt"><b>${k === "s" ? "Đường" : "Đá"}</b><div class="chips">${g.map(v => `<button type="button" class="chip ${optTokens(l.note).includes(v) ? "on" : ""}" data-opt="${k}" data-v="${esc(v)}" ${open ? "" : "disabled"}>${esc(v.replace(" đường", ""))}</button>`).join("")}</div></div>`).join("") : ""}
       <input class="note" placeholder="Ghi chú riêng của bạn (ít đá, ít ngọt, ít cơm…)" maxlength="200" value="${esc(l.note)}" ${open ? "" : "disabled"}></div>`;
   // Combo "2 món 27K": ô tick là các món chọn kèm (giá 0) và phải chọn đúng số món ghi trong tên
   const pickOf = it => { const m = tops.length && tops.every(t => !t.price) && COMBO_RE.exec(it.name); return m ? parseInt(m[0]) : 0; };
@@ -1360,6 +1381,13 @@ function drawOrder() {
     if (ex) ex.qty = Math.min(50, ex.qty + 1); else state.cart.push(l);
     if (pick) sel.tops = [];   // combo kế tiếp chọn món lại từ đầu
     drawOrder();
+    markCart();
+  });
+  document.querySelectorAll(".line [data-opt]").forEach(b => b.onclick = () => {
+    const box = b.closest(".line"), l = state.cart.find(x => lineKey(x) === box.dataset.k);
+    l.note = setOpt(l.note, b.dataset.opt === "s" ? SUGAR : ICE, b.dataset.v);
+    box.querySelector("input.note").value = l.note;
+    box.querySelectorAll("[data-opt]").forEach(x => x.classList.toggle("on", optTokens(l.note).includes(x.dataset.v)));
     markCart();
   });
   document.querySelectorAll(".line input.note").forEach(i => i.oninput = () => { state.cart.find(x => lineKey(x) === i.closest(".line").dataset.k).note = i.value; markCart(); });
