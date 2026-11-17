@@ -248,7 +248,7 @@
   .sheet { position:fixed; left:0; right:0; bottom:0; z-index:21; max-width:520px; margin:0 auto; background:#fff; border-radius:24px 24px 0 0; padding:10px 20px calc(20px + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .22s cubic-bezier(.2,.8,.2,1); box-shadow:0 -10px 40px rgba(31,26,20,.15); }
   .sheet-bg.show { opacity:1; } .sheet.show { transform:none; }
   .sheet .grab { width:40px; height:4px; border-radius:4px; background:var(--line2); margin:0 auto 16px; }
-  .sheet .msg { font-size:15.5px; white-space:pre-line; margin:0 0 20px; }
+  .sheet .msg { font-size:15.5px; white-space:pre-line; margin:0 0 20px; max-height:60vh; overflow-y:auto; }
   .sheet .acts { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .sheet .acts button { margin:0; min-height:50px; }
   .toast { position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translateX(-50%); max-width:calc(100% - 32px); width:max-content; text-align:center; background:var(--ink); color:#fff; padding:10px 16px; border-radius:99px; font-size:14px; font-weight:500; z-index:30; box-shadow:0 8px 24px rgba(31,26,20,.25); animation:toastIn .18s ease-out; }
@@ -1585,9 +1585,6 @@ const deliveryText = s => s.delivery === "now" ? "giao liền" : s.delivery ? `g
 const summaryTail = s => [s.owner_phone, s.place, deliveryText(s)].filter(Boolean).join(", ") + "." + (s.extra_full && s.kind !== "nuoc" ? " Cơm thêm đầy đủ." : "");
 // Đơn tính vào tin nhắn: đặt trước chỉ tính đơn đã chuyển khoản
 const summaryOrders = () => state.data.session.prepay ? state.data.orders.filter(o => o.paid) : state.data.orders;
-// Phiên chuyển khoản trước: số người chưa "Đã trả" – đơn của họ chưa vào tin nhắn gửi quán
-const unpaidPeople = () => state.data.session.prepay ? new Set(state.data.orders.filter(o => !o.paid).map(o => o.phone)).size : 0;
-const unpaidNoteHtml = () => { const n = unpaidPeople(); return n ? `<div class="mute" style="margin-bottom:8px">⚠ ${n} người chưa thanh toán – đơn của họ chưa hiện trong tin nhắn.</div>` : ""; };
 function buildSummary() {
   const { session: s } = state.data, agg = {};
   summaryOrders().forEach(o => {
@@ -2133,7 +2130,6 @@ function drawManage() {
         <pre class="sum" id="sum">${esc(buildSummary())}</pre>
         <div id="noteSel" style="margin-bottom:8px"></div>
         ${state.data.session.prepay ? `<div class="mute" style="margin-bottom:8px">Phiên yêu cầu chuyển khoản trước: tin nhắn chỉ tính đơn đã đánh dấu "Đã trả".</div>` : ""}
-        <div id="unpaidNote">${unpaidNoteHtml()}</div>
         <button class="ghost w100" id="copy">${I("copy", "sm")} Copy tin nhắn</button>
         ${S.kind === "nuoc" ? "" : `<label class="chk mt3"><input type="checkbox" id="extraFull" ${S.extra_full ? "checked" : ""}> Cơm thêm đầy đủ</label>
         <div class="mute">Tick nếu cần – tin nhắn sẽ thêm dòng "Cơm thêm đầy đủ."</div>`}
@@ -2256,8 +2252,10 @@ function drawManage() {
   if (P === "close") {
     setBar(`<button class="${isOpen() ? "primary" : "ghost plain w100"}" id="lock" style="margin:0;min-height:50px">${isOpen() ? `${I("lock", "sm")} Chốt đơn – khóa đặt món` : `${I("unlock", "sm")} Mở lại phiên`}</button>`);
     $("#lock").onclick = async () => {
-      const n = unpaidPeople();
-      if (isOpen() && !await ask(`Chốt đơn?\nMọi người sẽ không đặt thêm hay sửa đơn được. Bạn có thể mở lại sau.${n ? `\n\n⚠ ${n} người chưa thanh toán nên đơn của họ chưa hiện trong tin nhắn gửi quán.` : ""}`, "Chốt đơn")) return;
+      // Phiên chuyển khoản trước: đơn chưa "Đã trả" không vào tin nhắn gửi quán – liệt kê để chủ phiên biết
+      const todo = state.data.session.prepay ? peopleStatus().filter(p => !p.paid) : [];
+      const list = todo.map(p => `• ${p.name}: ${p.rows.map(o => orderLabel(o) + (o.qty > 1 ? ` ×${o.qty}` : "")).join(", ")} – ${money(p.due)}`).join("\n");
+      if (isOpen() && !await ask(`Chốt đơn?\nMọi người sẽ không đặt thêm hay sửa đơn được. Bạn có thể mở lại sau.${todo.length ? `\n\n⚠ ${todo.length} người chưa thanh toán nên đơn của họ chưa hiện trong tin nhắn gửi quán:\n${list}` : ""}`, "Chốt đơn")) return;
       try { await api("setStatus", { id: state.sid, status: isOpen() ? "locked" : "open" }); await refreshSession(); } catch (e) { toast(e.message); }
     };
   } else setBar("");
@@ -2268,7 +2266,6 @@ function paintManageOrders() {
   if (state.panel === "unpaid") return paintUnpaid();
   $("#ordersCard").innerHTML = `<h2>Đơn của mọi người</h2>${ordersByPerson(state.data.orders, true)}`;
   $("#kpiBox").innerHTML = closeKpis();
-  $("#unpaidNote").innerHTML = unpaidNoteHtml();
   paintNoteSel();
   $("#detail").textContent = buildDetail();
   paintTabs();
